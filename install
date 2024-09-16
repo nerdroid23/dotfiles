@@ -1,0 +1,85 @@
+#!/bin/bash
+
+line() { echo "------------"; }
+
+line
+echo "Setting up your Mac..."
+line
+
+echo "Hide \"last login\" line when starting a new terminal session"
+touch $HOME/.hushlogin
+line
+
+DOTFILES=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+
+# Check for Oh My Zsh and install if we don't have it
+if test ! $(which omz); then
+    echo "Installing Oh My Zsh..."
+    /bin/sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/HEAD/tools/install.sh)"
+    line
+fi
+
+# Check for Homebrew and install if we don't have it
+if test ! $(which brew); then
+    echo "Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> $HOME/.zprofile
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    line
+fi
+
+# Removes .zshrc from $HOME (if it exists) and symlinks the .zshrc file from the .dotfiles
+echo "Setting up zsh..."
+rm -rf $HOME/.zshrc
+ln -sw $DOTFILES/.zshrc $HOME/.zshrc
+source $HOME/.zshrc
+line
+
+# Copy gitconfigs
+echo "Setting up git..."
+ln -s $DOTFILES/.gitconfig $HOME/.gitconfig
+ln -s $DOTFILES/.gitconfig-init $HOME/.gitconfig-init
+ln -s $DOTFILES/.gitconfig-personal $HOME/.gitconfig-personal
+
+ln -s $DOTFILES/.gitignore-global $HOME/.gitignore-global
+git config --global core.excludesfile $HOME/.global-gitignore
+line
+
+# Update Homebrew
+echo "Updating Homebrew..."
+brew update
+line
+
+# Install all our dependencies with bundle (See Brewfile)
+echo "Installing Homebrew dependencies..."
+brew tap homebrew/bundle
+brew bundle --file ./Brewfile
+line
+
+# Install laravel valet
+echo "Installing Laravel Valet..."
+composer global require laravel/valet
+echo "Setting up Laravel Valet..."
+valet install
+valet trust
+line
+
+# Create a projects directories
+echo "Creating projects directories..."
+rm $HOME/Code
+mkdir $HOME/Code
+line
+
+# Symlink the Mackup config file to the home directory
+echo "Setting up Mackup..."
+rm $HOME/.mackup.cfg
+ln -s ./.mackup.cfg $HOME/.mackup.cfg
+line
+
+# Set macOS preferences - we will run this last because this will reload the shell
+echo "Setting macOS preferences..."
+source ./.macos
+line
+
+echo "Done. Please restart your computer to apply all changes."

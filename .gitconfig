@@ -1,0 +1,28 @@
+[filter "lfs"]
+    required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+
+[includeIf "gitdir:~/Code/init/"]
+    path = ~/.gitconfig-init
+
+[includeIf "gitdir:~/Code/personal/"]
+    path = ~/.gitconfig-personal
+
+[core]
+	excludesfile = /Users/kratos/.global-gitignore
+
+[alias]
+    nah = !git reset --hard && git clean -df
+    alias = !git config --get-regexp ^alias\\. | sed -e s/^alias\\.// -e s/\\ /\\ =\\ /
+    dad = !curl -s https://icanhazdadjoke.com/ && echo
+
+[init]
+    defaultBranch = main
+
+[credential]
+    helper = osxkeychain
+[user]
+	name = Joe Sylnice
+	email = nerdroid23@gmail.com

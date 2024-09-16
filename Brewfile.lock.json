@@ -1,0 +1,59 @@
+{
+  "entries": {
+    "tap": {
+      "homebrew/bundle": {
+        "revision": "acfb8210d4366ff63fa23d6a7a8ddbacd0234532"
+      }
+    },
+    "cask": {
+      "appcleaner": {
+        "version": "3.6.8",
+        "options": {
+          "full_name": "appcleaner"
+        }
+      },
+      "font-jetbrains-mono-nerd-font": {
+        "version": "3.2.1",
+        "options": {
+          "full_name": "font-jetbrains-mono-nerd-font"
+        }
+      },
+      "ngrok": {
+        "version": "3.16.0,m7a8FVY63,a",
+        "options": {
+          "full_name": "ngrok"
+        }
+      },
+      "raycast": {
+        "version": "1.82.5",
+        "options": {
+          "full_name": "raycast"
+        }
+      },
+      "warp": {
+        "version": "0.2024.09.10.08.02.stable_01",
+        "options": {
+          "full_name": "warp"
+        }
+      },
+      "zed": {
+        "version": "0.152.3",
+        "options": {
+          "full_name": "zed"
+        }
+      }
+    }
+  },
+  "system": {
+    "macos": {
+      "sequoia": {
+        "HOMEBREW_VERSION": "4.3.21",
+        "HOMEBREW_PREFIX": "/opt/homebrew",
+        "Homebrew/homebrew-core": "api",
+        "CLT": "15.3.0.0.1.1708646388",
+        "Xcode": "15.4",
+        "macOS": "15.0"
+      }
+    }
+  }
+}
