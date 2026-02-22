@@ -1,0 +1,71 @@
+# macOS — General
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+
+# IDEs
+.idea
+.vscode
+.fleet
+.phpstorm.meta.php
+.phpactor.json
+ide.json
+
+# PHP
+phploy.ini
+phploy
+.blueprint
+supervisord.conf
+.phpunit-watcher-cache.php
+.phpunit.result.cache
+draft.yaml
+_ide_helper.php
+_ide_helper_models.php
+.vite
+*.code-workspace
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Misc
+.prettierrc
+
+# AI Agents
+.junie
+.github/copilot-instructions.md
+.github/skills/
+.gemini
+.claude
+.amp
+.cursor
+.opencode
+.codex
+.agents

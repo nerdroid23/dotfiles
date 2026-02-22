@@ -1,0 +1,8 @@
+README.*
+PLAN\.md
+install\.sh
+Brewfile
+Brewfile\.lock\.json
+macos\.sh
+\.git
+\.gitignore

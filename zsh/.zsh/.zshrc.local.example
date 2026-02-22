@@ -1,0 +1,11 @@
+# Machine-specific settings — copy to ~/.zshrc.local and customize.
+# This file is gitignored and never committed to the repo.
+
+# API keys and secrets
+# export ANTHROPIC_API_KEY="your-key-here"
+
+# Tool-specific paths added by installers (e.g. LM Studio, Antigravity)
+# export PATH="$PATH:/some/tool/bin"
+
+# Local overrides for aliases or exports
+# export EDITOR="nano"

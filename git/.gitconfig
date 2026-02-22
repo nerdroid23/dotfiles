@@ -1,0 +1,45 @@
+[filter "lfs"]
+    required = true
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+
+# Work identity — local and external drive
+[includeIf "gitdir:~/work/"]
+    path = ~/.gitconfig-work
+[includeIf "gitdir:/Volumes/*/work/"]
+    path = ~/.gitconfig-work
+
+# Personal identity — local and external drive
+[includeIf "gitdir:~/projects/"]
+    path = ~/.gitconfig-personal
+[includeIf "gitdir:/Volumes/*/projects/"]
+    path = ~/.gitconfig-personal
+
+[core]
+    excludesfile = ~/.gitignore-global
+    pager = delta
+
+[alias]
+    nah = !git reset --hard && git clean -df
+    alias = !git config --get-regexp ^alias\\. | sed -e s/^alias\\.// -e s/\\ /\\ =\\ /
+    dad = !curl -s https://icanhazdadjoke.com/ && echo
+
+[init]
+    defaultBranch = main
+
+[credential]
+    helper = osxkeychain
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    navigate = true
+    side-by-side = true
+
+[merge]
+    conflictstyle = diff3
+
+[diff]
+    colorMoved = default

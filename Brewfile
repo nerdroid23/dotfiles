@@ -1,0 +1,157 @@
+tap "anomalyco/tap"
+tap "nicoverbruggen/cask"
+tap "shivammathur/extensions"
+tap "shivammathur/php"
+
+# ==============================================================================
+# Formulae
+# ==============================================================================
+
+# Core tools
+brew "bat"           # better cat
+brew "btop"          # better top
+brew "delta"         # better git diff pager
+brew "dust"          # better du
+brew "eza"           # better ls
+brew "fd"            # better find
+brew "procs"         # better ps
+brew "ripgrep"       # better grep
+brew "zoxide"        # better cd
+
+# Shell
+brew "stow"          # symlink manager
+brew "starship"      # cross-shell prompt
+brew "mackup"        # app config sync
+
+# Development
+brew "cocoapods"
+brew "composer"
+brew "dnsmasq"
+brew "elixir"
+brew "fastlane"
+brew "gh"
+brew "go"
+brew "helix"
+brew "httpie"
+brew "lazygit"
+brew "lazysql"
+brew "mailpit", restart_service: :changed
+brew "mas"
+brew "micro"
+brew "nginx"
+brew "php@8.2"
+brew "php@8.4", link: true
+brew "railway"
+brew "rustup"
+brew "volta"
+brew "watchman"
+
+# Third-party taps
+brew "anomalyco/tap/opencode"
+brew "shivammathur/extensions/xdebug@8.4"
+
+# ==============================================================================
+# Casks
+# ==============================================================================
+cask "adguard"
+cask "android-studio"
+cask "appcleaner"
+cask "caffeine"
+cask "chatgpt"
+cask "coderabbit"
+cask "copilot-cli"
+cask "cursor"
+cask "dbngin"
+cask "discord"
+cask "font-jetbrains-mono-nerd-font"
+cask "font-zed-mono-nerd-font"
+cask "github"
+cask "google-chrome"
+cask "hiddenbar"
+cask "karabiner-elements"
+cask "microsoft-edge"
+cask "ngrok"
+cask "phpstorm"
+cask "plex-media-server"
+cask "raycast"
+cask "rectangle"
+cask "shottr"
+cask "spotify"
+cask "suspicious-package"
+cask "tableplus"
+cask "tailscale-app"
+cask "tinkerwell"
+cask "visual-studio-code"
+cask "vlc"
+cask "warp"
+cask "zed"
+cask "zoom"
+cask "zulu@17"
+
+# ==============================================================================
+# Mac App Store
+# ==============================================================================
+mas "Bitwarden", id: 1352778147
+mas "Keynote", id: 409183694
+mas "Microsoft Excel", id: 462058435
+mas "NordVPN", id: 905953485
+mas "Numbers", id: 409203825
+mas "Pages", id: 409201541
+mas "TestFlight", id: 899247664
+mas "Transporter", id: 1450874784
+mas "WhatsApp", id: 310633997
+mas "Xcode", id: 497799835
+
+# ==============================================================================
+# VS Code Extensions
+# ==============================================================================
+vscode "angular.ng-template"
+vscode "anteprimorac.html-end-tag-labels"
+vscode "anthropic.claude-code"
+vscode "astro-build.astro-vscode"
+vscode "biomejs.biome"
+vscode "bmewburn.vscode-intelephense-client"
+vscode "bradlc.vscode-tailwindcss"
+vscode "catppuccin.catppuccin-vsc-icons"
+vscode "coderabbit.coderabbit-vscode"
+vscode "dbaeumer.vscode-eslint"
+vscode "devsense.phptools-vscode"
+vscode "editorconfig.editorconfig"
+vscode "esbenp.prettier-vscode"
+vscode "expo.vscode-expo-tools"
+vscode "github.copilot-chat"
+vscode "github.github-vscode-theme"
+vscode "github.remotehub"
+vscode "github.vscode-pull-request-github"
+vscode "google.gemini-cli-vscode-ide-companion"
+vscode "google.geminicodeassist"
+vscode "gruntfuggly.todo-tree"
+vscode "hakcorp.php-awesome-snippets"
+vscode "kamikillerto.vscode-colorize"
+vscode "laravel.vscode-laravel"
+vscode "liamhammett.temphpest"
+vscode "lokalise.i18n-ally"
+vscode "marclipovsky.string-manipulation"
+vscode "mikestead.dotenv"
+vscode "ms-vscode.remote-repositories"
+vscode "ms-vsliveshare.vsliveshare"
+vscode "nuxtr.nuxtr-vscode"
+vscode "oderwat.indent-rainbow"
+vscode "open-southeners.laravel-pint"
+vscode "openai.chatgpt"
+vscode "patbenatar.advanced-new-file"
+vscode "postman.postman-for-vscode"
+vscode "prisma.prisma"
+vscode "quicktype.quicktype"
+vscode "recca0120.vscode-phpunit"
+vscode "redhat.vscode-yaml"
+vscode "sleistner.vscode-fileutils"
+vscode "sourcegraph.amp"
+vscode "stillat-llc.vscode-antlers"
+vscode "tamasfe.even-better-toml"
+vscode "unifiedjs.vscode-mdx"
+vscode "usernamehw.errorlens"
+vscode "vincaslt.highlight-matching-tag"
+vscode "vscode-icons-team.vscode-icons"
+vscode "vue.volar"
+vscode "yoavbls.pretty-ts-errors"
