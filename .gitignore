@@ -8,3 +8,6 @@
 
 # Test artifacts
 tests/tmp/
+
+# Homebrew lock file (prefer latest versions)
+Brewfile.lock.json
