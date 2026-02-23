@@ -18,10 +18,6 @@ cd ~/dotfiles
 Options:
   --drive PATH    Set up external drive symlinks (e.g., --drive /Volumes/MyDrive)
   --dry-run       Preview actions without making changes
-  --no-macos      Skip macOS defaults
-  --no-valet      Skip Laravel Valet installation
-  --no-mas        Skip Mac App Store apps
-  --cli-only      Minimal install (implies --no-macos --no-mas)
 ```
 
 ### Examples
@@ -35,9 +31,6 @@ Options:
 
 # Install with external drive for large app data
 ./install.sh --drive /Volumes/MillenniumFalcon
-
-# Headless/server setup
-./install.sh --cli-only --no-valet
 ```
 
 ## What Gets Installed
@@ -83,6 +76,10 @@ This creates:
 
 Apps follow symlinks transparently - no configuration changes needed.
 
+> **Note:** The `--drive` setup is for fresh installs only. It fails fast on preexisting
+> state (wrong symlinks, conflicts) to avoid accidental data loss. Resolve manually
+> if needed.
+
 ## Git Identity
 
 Git uses conditional includes based on repo location:
@@ -123,7 +120,7 @@ This will:
 
 **"Not signed into App Store"**
 ```bash
-mas signin        # or use --no-mas flag
+mas signin
 ```
 
 **"iCloud Drive not ready"**
