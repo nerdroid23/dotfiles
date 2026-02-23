@@ -10,8 +10,23 @@ plugins=(git)
 
 source "$ZSH/oh-my-zsh.sh"
 
-# Dotfiles location (for other scripts to reference)
-export DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+# Dotfiles location (derived from symlinked .zshrc or explicit override)
+if [[ -z "${DOTFILES_DIR:-}" ]]; then
+  if [[ -L "$HOME/.zshrc" ]]; then
+    # Resolve symlink: ~/.zshrc -> .../dotfiles/zsh/.zshrc -> .../dotfiles
+    _zshrc_target="$(readlink "$HOME/.zshrc")"
+    # Handle relative symlinks
+    if [[ "$_zshrc_target" != /* ]]; then
+      _zshrc_target="$HOME/$_zshrc_target"
+    fi
+    # :A resolves to absolute path, :h gets parent (twice: .zshrc -> zsh -> dotfiles)
+    DOTFILES_DIR="${_zshrc_target:A:h:h}"
+    unset _zshrc_target
+  else
+    DOTFILES_DIR="$HOME/dotfiles"
+  fi
+fi
+export DOTFILES_DIR
 
 # ==============================================================================
 # Dotfiles modules

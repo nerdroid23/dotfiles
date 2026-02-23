@@ -29,8 +29,14 @@ print_skip()   { echo -e "  ${BLUE}skip${RESET} $1 (already done)"; }
 print_error()  { echo -e "  ${RED}error${RESET} $1" >&2; }
 print_warn()   { echo -e "  ${YELLOW}warn${RESET} $1"; }
 
-# Error trap for debugging
-trap 'print_error "Failed at line $LINENO in ${FUNCNAME[0]:-main}: $BASH_COMMAND"' ERR
+# Cleanup and error handling
+BREWFILE_TMP=""
+cleanup() {
+  [[ -n "$BREWFILE_TMP" && -f "$BREWFILE_TMP" ]] && rm -f "$BREWFILE_TMP"
+  return 0
+}
+trap 'cleanup; print_error "Failed at line $LINENO in ${FUNCNAME[0]:-main}: $BASH_COMMAND"' ERR
+trap cleanup EXIT
 
 prompt() {
   local var="$1" msg="$2" default="${3:-}"
@@ -57,6 +63,31 @@ run() {
   else
     "$@"
   fi
+}
+
+# Prepare Brewfile (filtered if flags require)
+prepare_brewfile() {
+  local src="$DOTFILES/Brewfile"
+
+  # No filtering needed
+  if [[ "$CLI_ONLY" != true && "$SKIP_MAS" != true ]]; then
+    echo "$src"
+    return
+  fi
+
+  local tmp
+  tmp="$(mktemp)"
+  BREWFILE_TMP="$tmp"
+
+  if [[ "$CLI_ONLY" == true ]]; then
+    # Exclude cask, mas, and vscode lines
+    grep -Ev '^(cask|mas|vscode)[[:space:]]+"' "$src" > "$tmp"
+  else
+    # --no-mas only: exclude mas lines
+    grep -Ev '^mas[[:space:]]+"' "$src" > "$tmp"
+  fi
+
+  echo "$tmp"
 }
 
 # ==============================================================================
@@ -222,8 +253,20 @@ fi
 # Homebrew bundle
 # ==============================================================================
 print_header "Brew bundle"
-print_step "Installing packages, casks, and VS Code extensions..."
-run brew bundle --file="$DOTFILES/Brewfile"
+
+BUNDLE_FILE="$(prepare_brewfile)"
+# Track temp file for cleanup (prepare_brewfile runs in subshell, so BREWFILE_TMP doesn't propagate)
+[[ "$BUNDLE_FILE" != "$DOTFILES/Brewfile" ]] && BREWFILE_TMP="$BUNDLE_FILE"
+
+if [[ "$CLI_ONLY" == true ]]; then
+  print_step "Installing CLI-only packages (excluding casks, mas apps, VS Code extensions)..."
+elif [[ "$SKIP_MAS" == true ]]; then
+  print_step "Installing packages (excluding Mac App Store apps)..."
+else
+  print_step "Installing packages, casks, and VS Code extensions..."
+fi
+
+run brew bundle --file="$BUNDLE_FILE"
 print_ok "Brew bundle complete"
 
 # ==============================================================================
@@ -277,6 +320,10 @@ print_header "Git identity files"
 
 if [[ -f "$HOME/.gitconfig-work" && -f "$HOME/.gitconfig-personal" ]]; then
   print_skip "Git identity files"
+elif [[ "$DRY_RUN" == true ]]; then
+  echo -e "  ${YELLOW}[dry-run]${RESET} Would prompt for work/personal Git identity"
+  echo -e "  ${YELLOW}[dry-run]${RESET} Would write ~/.gitconfig-work"
+  echo -e "  ${YELLOW}[dry-run]${RESET} Would write ~/.gitconfig-personal"
 else
   echo -e "\n  ${BOLD}Work identity${RESET}"
   prompt WORK_NAME  "  Name"  ""
@@ -286,24 +333,19 @@ else
   prompt PERSONAL_NAME  "  Name"  ""
   prompt PERSONAL_EMAIL "  Email" ""
 
-  if [[ "$DRY_RUN" != true ]]; then
-    cat > "$HOME/.gitconfig-work" <<EOF
+  cat > "$HOME/.gitconfig-work" <<EOF
 [user]
     name = $WORK_NAME
     email = $WORK_EMAIL
 EOF
-    print_ok "~/.gitconfig-work"
+  print_ok "~/.gitconfig-work"
 
-    cat > "$HOME/.gitconfig-personal" <<EOF
+  cat > "$HOME/.gitconfig-personal" <<EOF
 [user]
     name = $PERSONAL_NAME
     email = $PERSONAL_EMAIL
 EOF
-    print_ok "~/.gitconfig-personal"
-  else
-    echo -e "  ${YELLOW}[dry-run]${RESET} Write ~/.gitconfig-work"
-    echo -e "  ${YELLOW}[dry-run]${RESET} Write ~/.gitconfig-personal"
-  fi
+  print_ok "~/.gitconfig-personal"
 fi
 
 # ==============================================================================
