@@ -309,13 +309,13 @@ run_mackup_restore() {
   print_header "Mackup"
   print_step "Restoring app configs from iCloud..."
   if [[ "$DRY_RUN" != true ]]; then
-    if mackup restore --force 2>/dev/null; then
+    if mackup --config-file="$DOTFILES/mackup/.mackup.cfg" restore --force 2>/dev/null; then
       print_ok "Mackup restore complete"
     else
       print_skip "Mackup restore (no backup found or iCloud not ready - run manually later)"
     fi
   else
-    echo -e "  ${YELLOW}[dry-run]${RESET} mackup restore --force"
+    echo -e "  ${YELLOW}[dry-run]${RESET} mackup --config-file=\"$DOTFILES/mackup/.mackup.cfg\" restore --force"
   fi
 }
 

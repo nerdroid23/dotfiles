@@ -79,7 +79,7 @@ uninstall_mackup() {
 
   if command -v mackup &>/dev/null && [[ -f "$HOME/.mackup.cfg" ]]; then
     print_step "Running mackup uninstall --force..."
-    mackup uninstall --force
+    mackup --config-file="$DOTFILES/mackup/.mackup.cfg" uninstall --force
     print_ok "Mackup symlinks replaced with real files"
   else
     print_skip "Mackup (not installed or no config)"

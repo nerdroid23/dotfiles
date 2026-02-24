@@ -36,6 +36,11 @@ This will:
 Options:
 - `--dry-run` - Show what would be done without updating `Brewfile` or running Mackup
 
+### Mackup Custom Apps
+
+This repo includes custom Mackup app definitions for unsupported dotfolders.
+They live in `mackup/.mackup/` and are stowed to `~/.mackup/` so Mackup can load them.
+
 ### Examples
 
 ```bash

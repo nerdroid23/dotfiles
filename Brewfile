@@ -2,28 +2,9 @@ tap "anomalyco/tap"
 tap "nicoverbruggen/cask"
 tap "shivammathur/extensions"
 tap "shivammathur/php"
-
-# ==============================================================================
-# Formulae
-# ==============================================================================
-
-# Core tools
-brew "bat"           # better cat
-brew "btop"          # better top
-brew "delta"         # better git diff pager
-brew "dust"          # better du
-brew "eza"           # better ls
-brew "fd"            # better find
-brew "procs"         # better ps
-brew "ripgrep"       # better grep
-brew "zoxide"        # better cd
-
-# Shell
-brew "stow"          # symlink manager
-brew "starship"      # cross-shell prompt
-brew "mackup"        # app config sync
-
-# Development
+brew "bat"
+brew "bats-core"
+brew "btop"
 brew "cocoapods"
 brew "composer"
 brew "dnsmasq"
@@ -35,6 +16,7 @@ brew "helix"
 brew "httpie"
 brew "lazygit"
 brew "lazysql"
+brew "mackup"
 brew "mailpit", restart_service: :changed
 brew "mas"
 brew "micro"
@@ -45,14 +27,10 @@ brew "railway"
 brew "rustup"
 brew "volta"
 brew "watchman"
-
-# Third-party taps
 brew "anomalyco/tap/opencode"
 brew "shivammathur/extensions/xdebug@8.4"
-
-# ==============================================================================
-# Casks
-# ==============================================================================
+brew "shivammathur/php/php@7.3"
+brew "shivammathur/php/php@7.4"
 cask "adguard"
 cask "android-studio"
 cask "appcleaner"
@@ -87,10 +65,6 @@ cask "warp"
 cask "zed"
 cask "zoom"
 cask "zulu@17"
-
-# ==============================================================================
-# Mac App Store
-# ==============================================================================
 mas "Bitwarden", id: 1352778147
 mas "Keynote", id: 409183694
 mas "Microsoft Excel", id: 462058435
@@ -101,10 +75,6 @@ mas "TestFlight", id: 899247664
 mas "Transporter", id: 1450874784
 mas "WhatsApp", id: 310633997
 mas "Xcode", id: 497799835
-
-# ==============================================================================
-# VS Code Extensions
-# ==============================================================================
 vscode "angular.ng-template"
 vscode "anteprimorac.html-end-tag-labels"
 vscode "anthropic.claude-code"

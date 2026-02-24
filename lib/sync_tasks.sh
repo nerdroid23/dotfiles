@@ -71,7 +71,7 @@ sync_brewfile() {
 sync_mackup_backup() {
   print_header "Mackup"
   print_step "Running mackup backup --force..."
-  run mackup backup --force
+  run mackup --config-file="$DOTFILES/mackup/.mackup.cfg" backup --force
   print_ok "Mackup backup complete"
 }
 
