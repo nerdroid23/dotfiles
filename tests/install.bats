@@ -26,8 +26,20 @@ load test_helper
   bash -n "$BATS_TEST_DIRNAME/../lib/uninstall_tasks.sh"
 }
 
+@test "cli_sync.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/cli_sync.sh"
+}
+
+@test "sync_tasks.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/sync_tasks.sh"
+}
+
 @test "uninstall.sh has valid syntax" {
   bash -n "$BATS_TEST_DIRNAME/../uninstall.sh"
+}
+
+@test "sync.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../sync.sh"
 }
 
 @test "macos.sh has valid syntax" {

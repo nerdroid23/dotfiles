@@ -32,12 +32,6 @@ validate_drive_option() {
   fi
 }
 
-announce_dry_run() {
-  if [[ "$DRY_RUN" == true ]]; then
-    echo -e "  ${YELLOW}Dry-run mode enabled - no changes will be made${RESET}\n"
-  fi
-}
-
 create_hushlogin() {
   run touch "$HOME/.hushlogin"
 }

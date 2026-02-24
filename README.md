@@ -20,6 +20,22 @@ Options:
   --dry-run       Preview actions without making changes
 ```
 
+## Syncing Changes Back
+
+To capture your current machine state back into the repo:
+
+```bash
+./sync.sh
+```
+
+This will:
+- Update `Brewfile` with your currently installed Homebrew packages
+- Run `mackup backup --force` to sync app configs to iCloud
+- Show `git status`/`git diff --stat` and a suggested commit command
+
+Options:
+- `--dry-run` - Show what would be done without updating `Brewfile` or running Mackup
+
 ### Examples
 
 ```bash

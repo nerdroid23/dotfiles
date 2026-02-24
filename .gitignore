@@ -6,6 +6,10 @@
 *.swo
 *~
 
+# Local AI tool state
+.claude/
+.codex/
+
 # Test artifacts
 tests/tmp/
 

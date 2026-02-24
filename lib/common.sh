@@ -18,6 +18,12 @@ print_skip()   { echo -e "  ${BLUE}skip${RESET} $1 (already done)"; }
 print_error()  { echo -e "  ${RED}error${RESET} $1" >&2; }
 print_warn()   { echo -e "  ${YELLOW}warn${RESET} $1"; }
 
+announce_dry_run() {
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}Dry-run mode enabled - no changes will be made${RESET}\n"
+  fi
+}
+
 prompt() {
   local var="$1" msg="$2" default="${3:-}"
   local display_default="" value=""
