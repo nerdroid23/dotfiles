@@ -6,6 +6,26 @@ load test_helper
   bash -n "$BATS_TEST_DIRNAME/../install.sh"
 }
 
+@test "common.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/common.sh"
+}
+
+@test "cli_install.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/cli_install.sh"
+}
+
+@test "install_tasks.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/install_tasks.sh"
+}
+
+@test "cli_uninstall.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/cli_uninstall.sh"
+}
+
+@test "uninstall_tasks.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/uninstall_tasks.sh"
+}
+
 @test "uninstall.sh has valid syntax" {
   bash -n "$BATS_TEST_DIRNAME/../uninstall.sh"
 }
