@@ -1,0 +1,23 @@
+{
+  "security": {
+    "auth": {
+      "selectedType": "oauth-personal"
+    }
+  },
+  "ui": {
+    "theme": "Default Light",
+    "showStatusInTitle": true,
+    "footer": {
+      "hideContextPercentage": false
+    }
+  },
+  "general": {
+    "previewFeatures": true,
+    "enablePromptCompletion": true
+  },
+  "context": {
+    "fileName": [
+      "GEMINI.md"
+    ]
+  }
+}

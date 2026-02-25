@@ -36,10 +36,45 @@ This will:
 Options:
 - `--dry-run` - Show what would be done without updating `Brewfile` or running Mackup
 
-### Mackup Custom Apps
+### Mackup and AI CLI Configs
 
-This repo includes custom Mackup app definitions for unsupported dotfolders.
-They live in `mackup/.mackup/` and are stowed to `~/.mackup/` so Mackup can load them.
+Mackup is used for app-managed settings/state that are worth syncing, but not for
+entire AI CLI folders anymore (they contain lots of cache/session/log data).
+
+Selected AI CLI config files are tracked as dotfiles instead via the `ai-cli` stow package
+(for example `~/.gemini/settings.json` and `~/.copilot/*.json` config files).
+
+## Volta to mise Migration Notes
+
+Volta is currently still working on this machine, but Volta maintainers have recommended
+migrating to `mise` because Volta is no longer actively maintained.
+
+Recommended split (keep it simple):
+- `mise`: runtimes like `node` and `bun`
+- `corepack` (bundled with Node): `yarn`, `pnpm`
+- Homebrew: general CLIs like `tldr`
+- `npm -g` (under `mise`-managed Node): app CLIs like `codex`, `gemini`, `amp`
+
+### Suggested migration checklist (safe path)
+
+1. Install and activate `mise` (keep Volta installed for now).
+2. Install Node in `mise` (start with current default, e.g. `node@24`).
+3. Enable Corepack and activate package manager versions:
+   - `corepack enable`
+   - `corepack prepare yarn@1.22.22 --activate`
+   - `corepack prepare pnpm@10.x --activate`
+4. Install `bun` via `mise` (instead of npm/Volta-managed wrapper).
+5. Install `tldr` via Homebrew and add it to `Brewfile`.
+6. Reinstall npm global CLIs you actually use (`codex`, `gemini`, `amp`, etc.) under the new Node.
+7. Verify commands (`node`, `bun`, `yarn`, `pnpm`, `tldr`, `codex`, `gemini`, `amp`).
+8. After a few days of no issues, remove Volta from shell init and uninstall it.
+
+### Current tool migration targets (for reference)
+
+- `bun` -> manage with `mise`
+- `yarn` -> manage with `corepack`
+- `pnpm` -> manage with `corepack`
+- `tldr` -> install/manage with Homebrew
 
 ### Examples
 

@@ -150,7 +150,7 @@ install_laravel_valet() {
 stow_dotfiles() {
   print_header "Symlinking dotfiles (stow)"
   print_step "Running stow --restow..."
-  run stow --restow --dir="$DOTFILES" --target="$HOME" mackup git zsh starship
+  run stow --restow --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
   print_ok "Symlinks created"
 }
 
