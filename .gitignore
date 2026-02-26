@@ -7,8 +7,8 @@
 *~
 
 # Local AI tool state
-.claude/
-.codex/
+/.claude/
+/.codex/
 
 # Test artifacts
 tests/tmp/

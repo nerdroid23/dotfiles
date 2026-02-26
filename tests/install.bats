@@ -34,12 +34,24 @@ load test_helper
   bash -n "$BATS_TEST_DIRNAME/../lib/sync_tasks.sh"
 }
 
+@test "cli_migrate.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/cli_migrate.sh"
+}
+
+@test "migrate_tasks.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../lib/migrate_tasks.sh"
+}
+
 @test "uninstall.sh has valid syntax" {
   bash -n "$BATS_TEST_DIRNAME/../uninstall.sh"
 }
 
 @test "sync.sh has valid syntax" {
   bash -n "$BATS_TEST_DIRNAME/../sync.sh"
+}
+
+@test "migrate-volta-to-mise.sh has valid syntax" {
+  bash -n "$BATS_TEST_DIRNAME/../migrate-volta-to-mise.sh"
 }
 
 @test "macos.sh has valid syntax" {

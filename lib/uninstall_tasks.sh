@@ -43,7 +43,7 @@ print_uninstall_summary() {
   echo -e "  ${BOLD}The following will be removed:${RESET}"
   echo ""
   echo "   • Mackup symlinks (files copied back via mackup uninstall)"
-  echo "   • Stow symlinks (mackup, git, zsh, starship packages)"
+  echo "   • Stow symlinks (mackup, git, zsh, starship, ai-cli packages)"
   echo "   • ~/.gitconfig-work and ~/.gitconfig-personal"
   echo "   • ~/.hushlogin"
   echo "   • Laravel Valet"
@@ -91,7 +91,7 @@ remove_stow_symlinks() {
 
   if command -v stow &>/dev/null; then
     print_step "Running stow --delete..."
-    stow --delete --dir="$DOTFILES" --target="$HOME" mackup git zsh starship
+    stow --delete --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
     print_ok "Stow symlinks removed"
   else
     print_skip "Stow (not installed)"

@@ -42,7 +42,28 @@ Mackup is used for app-managed settings/state that are worth syncing, but not fo
 entire AI CLI folders anymore (they contain lots of cache/session/log data).
 
 Selected AI CLI config files are tracked as dotfiles instead via the `ai-cli` stow package
-(for example `~/.gemini/settings.json` and `~/.copilot/*.json` config files).
+(for example `~/.gemini/settings.json`, `~/.copilot/*.json`, `~/.claude/settings.json`,
+and `~/.codex/config.toml`).
+
+## Volta to mise Migration Script
+
+Run this one-time migration helper to move from Volta-managed Node tooling to mise:
+
+```bash
+# Preview actions first
+./migrate-volta-to-mise.sh --dry-run
+
+# Run migration
+./migrate-volta-to-mise.sh
+```
+
+Options:
+- `--yes` - Skip the confirmation prompt
+- `--node-version <version>` - Override detected Node version
+- `--bun-version <version>` - Override detected Bun version (`latest` supported)
+
+This script intentionally keeps Volta installed for fallback. Remove Volta later
+after you verify your workflows.
 
 ## Volta to mise Migration Notes
 
@@ -105,6 +126,7 @@ Recommended split (keep it simple):
 | `zsh/.zsh/` | `~/.zsh/` |
 | `starship/.config/starship.toml` | `~/.config/starship.toml` |
 | `mackup/.mackup.cfg` | `~/.mackup.cfg` |
+| `ai-cli/` | `~/.claude/settings.json`, `~/.codex/config.toml`, `~/.gemini/settings.json`, `~/.copilot/*.json` |
 
 ### Generated Files (not in repo)
 | File | Purpose |
@@ -196,7 +218,7 @@ The installer is idempotent - safe to run multiple times. It skips:
 
 ```bash
 # Verify symlinks
-stow --restow --dir=~/dotfiles --target=$HOME -n -v mackup git zsh starship
+stow --restow --dir=~/dotfiles --target=$HOME -n -v mackup git zsh starship ai-cli
 
 # Check shell config
 zsh -n ~/.zshrc
