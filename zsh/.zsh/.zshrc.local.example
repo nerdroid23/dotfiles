@@ -1,11 +1,54 @@
-# Machine-specific settings — copy to ~/.zshrc.local and customize.
-# This file is gitignored and never committed to the repo.
+# Machine-specific settings - copy to ~/.zshrc.local and customize.
+# This file is gitignored and should never be committed.
+#
+# Tips:
+# - Only put real secrets in ~/.zshrc.local (never in the repo).
+# - Keep values quoted.
+# - Group things by provider/tool so future-you can find them quickly.
 
-# API keys and secrets
-# export ANTHROPIC_API_KEY="your-key-here"
+# ==============================================================================
+# AI Providers
+# ==============================================================================
+# export OPENAI_API_KEY="sk-..."
+# export ANTHROPIC_API_KEY="sk-ant-..."
+# export GOOGLE_API_KEY="AIza..."
+# export GEMINI_API_KEY="$GOOGLE_API_KEY"  # if a tool expects this name
+#
+# Optional / examples:
+# export XAI_API_KEY="..."
+# export GROQ_API_KEY="..."
+# export TOGETHER_API_KEY="..."
 
-# Tool-specific paths added by installers (e.g. LM Studio, Antigravity)
+# ==============================================================================
+# AI Tools / CLIs
+# ==============================================================================
+# export OPENROUTER_API_KEY="sk-or-..."
+# export EXA_API_KEY="..."
+#
+# Tool-specific vars (examples only):
+# export CODEX_MODEL="gpt-5"
+# export AMP_API_KEY="..."
+
+# ==============================================================================
+# Cloud / Dev Services
+# ==============================================================================
+# export GITHUB_TOKEN="ghp_..."
+# export GITLAB_TOKEN="glpat-..."
+# export NPM_TOKEN="npm_..."
+# export CLOUDFLARE_API_TOKEN="..."
+# export RAILWAY_TOKEN="..."
+# export NGROK_AUTHTOKEN="..."
+
+# ==============================================================================
+# Tool-specific Paths (installers, local binaries, SDKs)
+# ==============================================================================
 # export PATH="$PATH:/some/tool/bin"
+# export PATH="$HOME/.local/bin:$PATH"
+# export ANDROID_HOME="$HOME/Library/Android/sdk"
 
-# Local overrides for aliases or exports
+# ==============================================================================
+# Machine-specific Overrides
+# ==============================================================================
 # export EDITOR="nano"
+# export BROWSER="open -a 'Google Chrome'"
+# alias gs="git status -sb"
