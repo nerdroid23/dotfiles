@@ -403,9 +403,28 @@ stow_dotfiles() {
     print_ok "stow installed"
   fi
 
+  backup_existing_zshrc_for_stow
+
   print_step "Running stow --restow..."
   run stow --restow --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
   print_ok "Symlinks created"
+}
+
+backup_existing_zshrc_for_stow() {
+  local zshrc="$HOME/.zshrc"
+  local backup="$HOME/.zshrc.pre-dotfiles-backup"
+
+  if [[ ! -e "$zshrc" || -L "$zshrc" ]]; then
+    return 0
+  fi
+
+  if [[ -e "$backup" ]]; then
+    backup="$HOME/.zshrc.pre-dotfiles-backup.$(date +%Y%m%d%H%M%S)"
+  fi
+
+  print_step "Backing up existing ~/.zshrc before stow..."
+  run mv "$zshrc" "$backup"
+  print_ok "~/.zshrc backed up to $backup"
 }
 
 setup_git_identity_files() {

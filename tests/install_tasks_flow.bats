@@ -148,13 +148,16 @@ EOF
 
 @test "stow_dotfiles dry-run installs stow when missing" {
   local fake_dotfiles="$TEST_TMP/dotfiles"
-  mkdir -p "$fake_dotfiles"
+  local fake_home="$TEST_TMP/home"
+  mkdir -p "$fake_dotfiles" "$fake_home"
+  echo "# existing omz zshrc" > "$fake_home/.zshrc"
 
   run bash -c '
     source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
     source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
     DRY_RUN=true
     DOTFILES="'"$fake_dotfiles"'"
+    HOME="'"$fake_home"'"
     PATH="/nonexistent"
     stow_dotfiles
   '
@@ -162,7 +165,28 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"stow not found - installing via Homebrew"* ]]
   [[ "$output" == *"brew install stow"* ]]
+  [[ "$output" == *"Backing up existing ~/.zshrc before stow"* ]]
+  [[ "$output" == *'mv '"$fake_home"'/.zshrc '"$fake_home"'/.zshrc.pre-dotfiles-backup'* ]]
   [[ "$output" == *"stow --restow"* ]]
+}
+
+@test "backup_existing_zshrc_for_stow moves real zshrc" {
+  local fake_home="$TEST_TMP/home"
+  mkdir -p "$fake_home"
+  echo "# existing omz zshrc" > "$fake_home/.zshrc"
+
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
+    HOME="'"$fake_home"'"
+    DRY_RUN=false
+    backup_existing_zshrc_for_stow
+  '
+
+  [ "$status" -eq 0 ]
+  [ ! -e "$fake_home/.zshrc" ]
+  [ -f "$fake_home/.zshrc.pre-dotfiles-backup" ]
+  [[ "$(cat "$fake_home/.zshrc.pre-dotfiles-backup")" == *"existing omz zshrc"* ]]
 }
 
 # ==============================================================================
