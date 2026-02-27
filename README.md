@@ -10,6 +10,16 @@ cd ~/dotfiles
 ./install.sh
 ```
 
+### Install flow
+
+The installer intentionally bootstraps PHP tooling before the full Brewfile run:
+
+1. Install Homebrew
+2. Install `php@8.4` and `composer`
+3. Install Laravel Valet via Composer
+4. Run `valet install` + `valet trust`, then `valet park` `~/work` and `~/projects` (plus drive `work/projects` when `--drive` is set)
+5. Continue with the remaining setup (`brew bundle`, dotfiles, macOS defaults, Mackup, etc.)
+
 ## Install Options
 
 ```bash
@@ -200,6 +210,9 @@ This will:
 ```bash
 mas signin
 ```
+
+The installer now continues even if App Store installs fail, then prints a summary
+with retry commands (`mas install <id>`) at the end.
 
 **"iCloud Drive not ready"**
 Sign into iCloud in System Settings, wait for sync, then run Mackup manually:

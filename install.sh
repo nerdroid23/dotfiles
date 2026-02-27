@@ -35,9 +35,12 @@ main() {
   create_hushlogin
   run_preflight_checks
   install_homebrew
-  install_oh_my_zsh
-  run_brew_bundle
+  install_php_and_composer_early
   install_laravel_valet
+  check_valet_health
+  install_oh_my_zsh
+  run_brew_bundle_non_mas_non_bootstrap
+  install_mas_apps_non_blocking
   stow_dotfiles
   setup_git_identity_files
   create_project_directories
@@ -50,6 +53,7 @@ main() {
   apply_macos_defaults
   run_mackup_restore
   create_local_overrides_file
+  print_install_warnings_summary
   print_install_done
 }
 

@@ -8,6 +8,21 @@
 # Drive helpers expected from lib/install_drive.sh:
 #   validate_drive_path, setup_symlink_safe
 
+INSTALL_WARNINGS=()
+MAS_FAILED_APPS=()
+MAS_FAILED_IDS=()
+
+add_install_warning() {
+  local warning="$1"
+  local item
+  for item in "${INSTALL_WARNINGS[@]}"; do
+    if [[ "$item" == "$warning" ]]; then
+      return 0
+    fi
+  done
+  INSTALL_WARNINGS+=("$warning")
+}
+
 show_install_banner() {
   echo -e "${BOLD}"
   echo "  +--------------------------------+"
@@ -54,10 +69,9 @@ run_preflight_checks() {
 
   # Check for mas apps (App Store login)
   if ! command -v mas &>/dev/null; then
-    print_warn "mas not installed yet - App Store check skipped (will install via brew)"
+    print_warn "mas not installed yet - App Store check skipped for now"
   elif ! mas account &>/dev/null; then
-    print_error "Not signed into App Store. Run: mas signin"
-    exit 1
+    print_warn "Not signed into App Store - MAS installs will be attempted later and may fail"
   else
     print_ok "App Store signed in"
   fi
@@ -93,6 +107,127 @@ install_homebrew() {
   fi
 }
 
+ensure_php84_linked() {
+  print_step "Ensuring php@8.4 is linked..."
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} brew link --overwrite php@8.4"
+    echo -e "  ${YELLOW}[dry-run]${RESET} (on conflict) brew unlink php && brew unlink php@8.2 && brew link --overwrite php@8.4"
+    return 0
+  fi
+
+  if brew link --overwrite php@8.4 &>/dev/null; then
+    print_ok "php@8.4 linked"
+    return 0
+  fi
+
+  print_warn "php@8.4 link conflict detected - unlinking conflicting formulas"
+  brew unlink php &>/dev/null || true
+  brew unlink php@8.2 &>/dev/null || true
+  brew link --overwrite php@8.4 &>/dev/null
+  print_ok "php@8.4 linked"
+}
+
+install_php_and_composer_early() {
+  print_header "PHP + Composer"
+  print_step "Installing php@8.4 and composer..."
+  run brew install php@8.4 composer
+  ensure_php84_linked
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} php -v"
+    echo -e "  ${YELLOW}[dry-run]${RESET} composer --version"
+  else
+    print_step "PHP: $(php -v | head -n 1)"
+    print_step "Composer: $(composer --version)"
+  fi
+
+  print_ok "PHP and Composer ready"
+}
+
+resolve_valet_bin() {
+  if command -v valet &>/dev/null; then
+    command -v valet
+    return 0
+  fi
+  if [[ -x "$HOME/.composer/vendor/bin/valet" ]]; then
+    echo "$HOME/.composer/vendor/bin/valet"
+    return 0
+  fi
+  if [[ -x "$HOME/.config/composer/vendor/bin/valet" ]]; then
+    echo "$HOME/.config/composer/vendor/bin/valet"
+    return 0
+  fi
+  return 1
+}
+
+normalize_valet_path() {
+  local path="$1"
+  path="${path/#\~/$HOME}"
+  path="${path%/}"
+  echo "$path"
+}
+
+valet_has_parked_path() {
+  local valet_bin="$1"
+  local target_path normalized_target normalized_line
+
+  target_path="$2"
+  normalized_target="$(normalize_valet_path "$target_path")"
+
+  while IFS= read -r line; do
+    normalized_line="$(normalize_valet_path "$line")"
+    if [[ "$normalized_line" == "$normalized_target" ]]; then
+      return 0
+    fi
+  done < <("$valet_bin" paths 2>/dev/null || true)
+
+  return 1
+}
+
+park_valet_directories() {
+  print_step "Parking Valet directories..."
+
+  local valet_bin=""
+  if [[ "$DRY_RUN" != true ]]; then
+    if ! valet_bin="$(resolve_valet_bin)"; then
+      print_warn "Valet binary not found - skipping valet park"
+      add_install_warning "Laravel Valet park step skipped because valet was not found in PATH"
+      return 0
+    fi
+  fi
+
+  local park_targets=(
+    "$HOME/work"
+    "$HOME/projects"
+  )
+  if [[ -n "$DRIVE" ]]; then
+    park_targets+=("$DRIVE/work" "$DRIVE/projects")
+  fi
+
+  local target
+  for target in "${park_targets[@]}"; do
+    run mkdir -p "$target"
+
+    if [[ "$DRY_RUN" == true ]]; then
+      echo -e "  ${YELLOW}[dry-run]${RESET} valet park \"$target\""
+      continue
+    fi
+
+    if valet_has_parked_path "$valet_bin" "$target"; then
+      print_skip "valet park $target"
+      continue
+    fi
+
+    if "$valet_bin" park "$target" >/dev/null 2>&1; then
+      print_ok "Valet parked $target"
+    else
+      print_warn "Failed to valet park $target"
+      add_install_warning "Laravel Valet failed to park $target"
+    fi
+  done
+}
+
 install_oh_my_zsh() {
   print_header "Oh My Zsh"
 
@@ -110,41 +245,149 @@ install_oh_my_zsh() {
   fi
 }
 
-run_brew_bundle() {
+build_non_mas_bootstrap_brewfile() {
+  local src="$1" dst="$2"
+
+  awk '
+    /^mas / { next }
+    /^brew "composer"/ { next }
+    /^brew "php@8.4"/ { next }
+    { print }
+  ' "$src" > "$dst"
+}
+
+run_brew_bundle_non_mas_non_bootstrap() {
   print_header "Brew bundle"
-  print_step "Installing packages, casks, and VS Code extensions..."
-  run brew bundle --file="$DOTFILES/Brewfile"
+  print_step "Installing remaining packages, casks, and VS Code extensions..."
+
+  local tmp_brewfile
+  tmp_brewfile="$(mktemp /tmp/dotfiles-brewfile.XXXXXX)"
+  build_non_mas_bootstrap_brewfile "$DOTFILES/Brewfile" "$tmp_brewfile"
+
+  run brew bundle --file="$tmp_brewfile"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} (Brewfile excludes mas, composer, php@8.4)"
+  fi
+
+  rm -f "$tmp_brewfile"
   print_ok "Brew bundle complete"
+}
+
+parse_mas_apps_from_brewfile() {
+  local brewfile="$1"
+  local line name id
+
+  while IFS= read -r line; do
+    name="$(printf '%s\n' "$line" | awk -F'"' '{print $2}')"
+    id="$(printf '%s\n' "$line" | sed -E 's/.*id: ([0-9]+).*/\1/')"
+    if [[ -n "$name" && "$id" =~ ^[0-9]+$ ]]; then
+      printf '%s\t%s\n' "$name" "$id"
+    fi
+  done < <(grep '^mas "' "$brewfile" || true)
+}
+
+install_mas_apps_non_blocking() {
+  print_header "App Store apps (mas)"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    print_step "Would install MAS apps from Brewfile:"
+    parse_mas_apps_from_brewfile "$DOTFILES/Brewfile" | while IFS=$'\t' read -r name id; do
+      echo "    - $name ($id)"
+    done
+    return 0
+  fi
+
+  if ! command -v mas &>/dev/null; then
+    print_warn "mas not installed - skipping App Store app installs"
+    add_install_warning "App Store apps skipped because mas is unavailable"
+    return 0
+  fi
+
+  if ! mas account &>/dev/null; then
+    print_warn "Not signed into App Store - skipping App Store app installs"
+    add_install_warning "App Store apps skipped because no App Store session is active"
+    return 0
+  fi
+
+  local name id had_apps=false
+  while IFS=$'\t' read -r name id; do
+    had_apps=true
+    print_step "Installing $name..."
+    if mas install "$id"; then
+      print_ok "$name"
+    else
+      print_warn "Failed to install $name ($id)"
+      MAS_FAILED_APPS+=("$name ($id)")
+      MAS_FAILED_IDS+=("$id")
+    fi
+  done < <(parse_mas_apps_from_brewfile "$DOTFILES/Brewfile")
+
+  if [[ "$had_apps" == false ]]; then
+    print_skip "App Store apps"
+  fi
+
+  if [[ ${#MAS_FAILED_APPS[@]} -gt 0 ]]; then
+    add_install_warning "Some App Store apps failed to install"
+  fi
 }
 
 install_laravel_valet() {
   print_header "Laravel Valet"
 
-  local composer_bin=""
-  if [[ -d "$HOME/.composer/vendor/bin" ]]; then
-    composer_bin="$HOME/.composer/vendor/bin"
-  elif [[ -d "$HOME/.config/composer/vendor/bin" ]]; then
-    composer_bin="$HOME/.config/composer/vendor/bin"
-  fi
-
-  if [[ -n "$composer_bin" && -x "$composer_bin/valet" ]]; then
+  local valet_bin=""
+  if valet_bin="$(resolve_valet_bin)"; then
     print_skip "Laravel Valet"
   else
     print_step "Installing Laravel Valet..."
     run composer global require laravel/valet
 
-    if [[ "$DRY_RUN" != true ]]; then
-      if [[ -x "$HOME/.composer/vendor/bin/valet" ]]; then
-        composer_bin="$HOME/.composer/vendor/bin"
-      elif [[ -x "$HOME/.config/composer/vendor/bin/valet" ]]; then
-        composer_bin="$HOME/.config/composer/vendor/bin"
+    if [[ "$DRY_RUN" == true ]]; then
+      echo -e "  ${YELLOW}[dry-run]${RESET} valet install"
+      echo -e "  ${YELLOW}[dry-run]${RESET} valet trust"
+    else
+      if ! valet_bin="$(resolve_valet_bin)"; then
+        print_error "valet binary not found after composer install"
+        return 1
       fi
-
-      "$composer_bin/valet" install
-      "$composer_bin/valet" trust
+      "$valet_bin" install
+      "$valet_bin" trust
     fi
     print_ok "Laravel Valet installed"
   fi
+
+  park_valet_directories
+}
+
+check_valet_health() {
+  print_header "Valet health check"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} valet --version"
+    echo -e "  ${YELLOW}[dry-run]${RESET} valet paths"
+    return 0
+  fi
+
+  local valet_bin=""
+  if ! valet_bin="$(resolve_valet_bin)"; then
+    print_warn "Valet binary not found for health check"
+    add_install_warning "Laravel Valet health check skipped because valet was not found in PATH"
+    return 0
+  fi
+
+  if ! "$valet_bin" --version >/dev/null 2>&1; then
+    print_warn "Valet version check failed"
+    add_install_warning "Laravel Valet health check failed: valet --version"
+    return 0
+  fi
+
+  if ! "$valet_bin" paths >/dev/null 2>&1; then
+    print_warn "Valet paths check failed"
+    add_install_warning "Laravel Valet health check failed: valet paths"
+    return 0
+  fi
+
+  print_ok "Valet looks healthy"
 }
 
 stow_dotfiles() {
@@ -327,6 +570,37 @@ create_local_overrides_file() {
   else
     run cp "$DOTFILES/zsh/.zsh/.zshrc.local.example" "$HOME/.zshrc.local"
     print_ok "~/.zshrc.local created from template"
+  fi
+}
+
+print_install_warnings_summary() {
+  if [[ ${#INSTALL_WARNINGS[@]} -eq 0 && ${#MAS_FAILED_APPS[@]} -eq 0 ]]; then
+    return 0
+  fi
+
+  print_header "Warnings summary"
+
+  local warning
+  for warning in "${INSTALL_WARNINGS[@]}"; do
+    echo "   - $warning"
+  done
+
+  if [[ ${#MAS_FAILED_APPS[@]} -gt 0 ]]; then
+    echo ""
+    echo "  App Store installs that failed:"
+    local app
+    for app in "${MAS_FAILED_APPS[@]}"; do
+      echo "   - $app"
+    done
+
+    if [[ ${#MAS_FAILED_IDS[@]} -gt 0 ]]; then
+      echo ""
+      echo "  Retry manually:"
+      local app_id
+      for app_id in "${MAS_FAILED_IDS[@]}"; do
+        echo "   mas install $app_id"
+      done
+    fi
   fi
 }
 
