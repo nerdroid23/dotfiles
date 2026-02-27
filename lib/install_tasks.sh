@@ -15,7 +15,7 @@ MAS_FAILED_IDS=()
 add_install_warning() {
   local warning="$1"
   local item
-  for item in "${INSTALL_WARNINGS[@]}"; do
+  for item in "${INSTALL_WARNINGS[@]-}"; do
     if [[ "$item" == "$warning" ]]; then
       return 0
     fi
@@ -70,7 +70,7 @@ run_preflight_checks() {
   # Check for mas apps (App Store login)
   if ! command -v mas &>/dev/null; then
     print_warn "mas not installed yet - App Store check skipped for now"
-  elif ! mas account &>/dev/null; then
+  elif ! mas list &>/dev/null; then
     print_warn "Not signed into App Store - MAS installs will be attempted later and may fail"
   else
     print_ok "App Store signed in"
@@ -304,7 +304,7 @@ install_mas_apps_non_blocking() {
     return 0
   fi
 
-  if ! mas account &>/dev/null; then
+  if ! mas list &>/dev/null; then
     print_warn "Not signed into App Store - skipping App Store app installs"
     add_install_warning "App Store apps skipped because no App Store session is active"
     return 0
