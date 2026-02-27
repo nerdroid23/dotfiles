@@ -550,11 +550,17 @@ apply_macos_defaults() {
   print_header "Applying macOS defaults"
   print_step "Running macos.sh..."
   if [[ "$DRY_RUN" != true ]]; then
-    bash "$DOTFILES/macos.sh"
+    if bash "$DOTFILES/macos.sh"; then
+      print_ok "macOS defaults applied"
+    else
+      print_warn "macOS defaults script reported errors - continuing setup"
+      add_install_warning "Some macOS defaults could not be applied. Re-run ./macos.sh manually later."
+      return 0
+    fi
   else
     echo -e "  ${YELLOW}[dry-run]${RESET} source macos.sh"
+    print_ok "macOS defaults applied"
   fi
-  print_ok "macOS defaults applied"
 }
 
 run_mackup_restore() {
