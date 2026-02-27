@@ -392,6 +392,17 @@ check_valet_health() {
 
 stow_dotfiles() {
   print_header "Symlinking dotfiles (stow)"
+
+  if ! command -v stow &>/dev/null; then
+    print_step "stow not found - installing via Homebrew..."
+    run brew install stow
+    if [[ "$DRY_RUN" != true ]] && ! command -v stow &>/dev/null; then
+      print_error "stow is still unavailable after installation"
+      return 1
+    fi
+    print_ok "stow installed"
+  fi
+
   print_step "Running stow --restow..."
   run stow --restow --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
   print_ok "Symlinks created"

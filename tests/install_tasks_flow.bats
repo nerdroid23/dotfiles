@@ -146,6 +146,25 @@ EOF
   [[ "$output" == *"park $fake_home/projects"* ]]
 }
 
+@test "stow_dotfiles dry-run installs stow when missing" {
+  local fake_dotfiles="$TEST_TMP/dotfiles"
+  mkdir -p "$fake_dotfiles"
+
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
+    DRY_RUN=true
+    DOTFILES="'"$fake_dotfiles"'"
+    PATH="/nonexistent"
+    stow_dotfiles
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"stow not found - installing via Homebrew"* ]]
+  [[ "$output" == *"brew install stow"* ]]
+  [[ "$output" == *"stow --restow"* ]]
+}
+
 # ==============================================================================
 # setup_ssh_key tests
 # ==============================================================================
