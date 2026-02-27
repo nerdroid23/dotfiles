@@ -11,6 +11,8 @@ source "$DOTFILES/lib/cli_uninstall.sh"
 # shellcheck source=lib/uninstall_tasks.sh
 source "$DOTFILES/lib/uninstall_tasks.sh"
 
+trap 'print_error "Failed at line $LINENO in ${FUNCNAME[0]:-main}: $BASH_COMMAND"' ERR
+
 main() {
   show_uninstall_banner
 
@@ -18,7 +20,12 @@ main() {
     exit 1
   fi
 
-  if ! parse_uninstall_args "$@"; then
+  local parse_status=0
+  parse_uninstall_args "$@" || parse_status=$?
+  if [[ "$parse_status" -eq 2 ]]; then
+    exit 0
+  fi
+  if [[ "$parse_status" -ne 0 ]]; then
     exit 1
   fi
 
@@ -26,6 +33,7 @@ main() {
     exit 1
   fi
 
+  announce_dry_run
   print_uninstall_summary
   if ! confirm_uninstall; then
     exit 0

@@ -23,7 +23,12 @@ main() {
     exit 1
   fi
 
-  if ! parse_install_args "$@"; then
+  local parse_status=0
+  parse_install_args "$@" || parse_status=$?
+  if [[ "$parse_status" -eq 2 ]]; then
+    exit 0
+  fi
+  if [[ "$parse_status" -ne 0 ]]; then
     exit 1
   fi
 
@@ -53,6 +58,7 @@ main() {
   apply_macos_defaults
   run_mackup_restore
   create_local_overrides_file
+  setup_ssh_key
   print_install_warnings_summary
   print_install_done
 }

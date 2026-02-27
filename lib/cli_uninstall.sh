@@ -3,33 +3,42 @@
 # CLI parsing for uninstall.sh
 
 usage_uninstall() {
-  echo "Usage: $0 [--drive /Volumes/NAME]"
+  cat <<USAGE
+Usage: $0 [options]
+
+Options:
+  --drive PATH    Reverse external drive symlinks (e.g., --drive /Volumes/MyDrive)
+  --dry-run       Preview actions without making changes
+  -h, --help      Show this help
+USAGE
 }
 
-cli_uninstall_print_error() {
-  if declare -f print_error >/dev/null 2>&1; then
-    print_error "$1"
-  else
-    echo "error $1" >&2
-  fi
-}
 
 parse_uninstall_args() {
   DRIVE=""
+  DRY_RUN=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
+      --dry-run)
+        DRY_RUN=true
+        shift
+        ;;
       --drive)
         if [[ $# -lt 2 ]]; then
-          cli_uninstall_print_error "--drive requires a path, e.g. --drive /Volumes/MillenniumFalcon"
+          echo "error: --drive requires a path, e.g. --drive /Volumes/MillenniumFalcon" >&2
           usage_uninstall
           return 1
         fi
         DRIVE="$2"
         shift 2
         ;;
+      -h|--help)
+        usage_uninstall
+        return 2
+        ;;
       *)
-        cli_uninstall_print_error "Unknown argument: $1"
+        echo "error: Unknown argument: $1" >&2
         usage_uninstall
         return 1
         ;;

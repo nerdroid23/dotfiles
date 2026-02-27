@@ -3,16 +3,16 @@
 # CLI parsing for install.sh
 
 usage_install() {
-  echo "Usage: $0 [--drive PATH] [--dry-run]"
+  cat <<USAGE
+Usage: $0 [options]
+
+Options:
+  --drive PATH    Set up external drive symlinks (e.g., --drive /Volumes/MyDrive)
+  --dry-run       Preview actions without making changes
+  -h, --help      Show this help
+USAGE
 }
 
-cli_install_print_error() {
-  if declare -f print_error >/dev/null 2>&1; then
-    print_error "$1"
-  else
-    echo "error $1" >&2
-  fi
-}
 
 parse_install_args() {
   DRIVE=""
@@ -23,7 +23,7 @@ parse_install_args() {
     case "$1" in
       --drive)
         if [[ $# -lt 2 ]]; then
-          cli_install_print_error "--drive requires a path, e.g. --drive /Volumes/MillenniumFalcon"
+          echo "error: --drive requires a path, e.g. --drive /Volumes/MillenniumFalcon" >&2
           usage_install
           return 1
         fi
@@ -38,8 +38,12 @@ parse_install_args() {
         DRY_RUN=true
         shift
         ;;
+      -h|--help)
+        usage_install
+        return 2
+        ;;
       *)
-        cli_install_print_error "Unknown argument: $1"
+        echo "error: Unknown argument: $1" >&2
         usage_install
         return 1
         ;;

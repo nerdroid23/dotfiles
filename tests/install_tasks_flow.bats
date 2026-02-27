@@ -145,3 +145,41 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"park $fake_home/projects"* ]]
 }
+
+# ==============================================================================
+# setup_ssh_key tests
+# ==============================================================================
+
+@test "setup_ssh_key skips when key already exists" {
+  local fake_home="$TEST_TMP/home"
+  mkdir -p "$fake_home/.ssh"
+  touch "$fake_home/.ssh/id_ed25519"
+
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
+    HOME="'"$fake_home"'"
+    DRY_RUN=false
+    setup_ssh_key
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"skip"* ]] || [[ "$output" == *"already"* ]]
+}
+
+@test "setup_ssh_key dry-run does not create key" {
+  local fake_home="$TEST_TMP/home"
+  mkdir -p "$fake_home"
+
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
+    HOME="'"$fake_home"'"
+    DRY_RUN=true
+    setup_ssh_key
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dry-run"* ]]
+  [ ! -f "$fake_home/.ssh/id_ed25519" ]
+}

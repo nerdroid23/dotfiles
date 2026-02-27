@@ -27,6 +27,17 @@ load test_helper
   [ "$DRY_RUN" = "true" ]
 }
 
+@test "parse_sync_args returns 2 on --help" {
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/cli_sync.sh"
+    parse_sync_args --help
+    exit $?
+  '
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"Usage:"* ]]
+}
+
 @test "parse_sync_args rejects unknown argument" {
   run bash -c '
     source "'"$BATS_TEST_DIRNAME"'/../lib/cli_sync.sh"

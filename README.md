@@ -5,7 +5,7 @@ Personal macOS dotfiles with automated setup. Uses GNU Stow for symlinks, Homebr
 ## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/dotfiles.git ~/dotfiles
+git clone https://github.com/nerdroid23/dotfiles.git ~/dotfiles
 cd ~/dotfiles
 ./install.sh
 ```
@@ -124,7 +124,7 @@ Recommended split (keep it simple):
 
 ### Packages (via Homebrew)
 - CLI tools: `bat`, `eza`, `fd`, `ripgrep`, `zoxide`, `delta`, `dust`, `procs`, `stow`, `starship`
-- Languages: PHP, Node (via Volta), Composer
+- Languages: PHP, Node (via Volta, migrating to mise -- see [migration script](#volta-to-mise-migration-script)), Composer
 - Apps: See `Brewfile` for full list
 
 ### Symlinked Configs (via Stow)

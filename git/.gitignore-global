@@ -55,9 +55,6 @@ node_modules
 npm-debug.log
 yarn-error.log
 
-# Misc
-.prettierrc
-
 # AI Agents
 .junie
 .github/copilot-instructions.md

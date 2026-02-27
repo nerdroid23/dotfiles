@@ -16,13 +16,13 @@ jobs:
         run: sudo apt-get install -y shellcheck
 
       - name: Shellcheck .sh files
-        run: shellcheck -x install.sh uninstall.sh macos.sh
+        run: shellcheck -x install.sh uninstall.sh sync.sh migrate-volta-to-mise.sh macos.sh lib/*.sh
 
       - name: Syntax check
         run: |
-          bash -n install.sh
-          bash -n uninstall.sh
-          bash -n macos.sh
+          for f in install.sh uninstall.sh sync.sh migrate-volta-to-mise.sh macos.sh lib/*.sh; do
+            bash -n "$f"
+          done
 
   test:
     runs-on: ubuntu-latest

@@ -15,13 +15,6 @@ Options:
 USAGE
 }
 
-cli_migrate_print_error() {
-  if declare -f print_error >/dev/null 2>&1; then
-    print_error "$1"
-  else
-    echo "error $1" >&2
-  fi
-}
 
 parse_migrate_args() {
   DRY_RUN=false
@@ -41,7 +34,7 @@ parse_migrate_args() {
         ;;
       --node-version)
         if [[ $# -lt 2 ]]; then
-          cli_migrate_print_error "--node-version requires a version (e.g. 24.13.0)"
+          echo "error: --node-version requires a version (e.g. 24.13.0)" >&2
           usage_migrate
           return 1
         fi
@@ -50,7 +43,7 @@ parse_migrate_args() {
         ;;
       --bun-version)
         if [[ $# -lt 2 ]]; then
-          cli_migrate_print_error "--bun-version requires a version (e.g. 1.3.8 or latest)"
+          echo "error: --bun-version requires a version (e.g. 1.3.8 or latest)" >&2
           usage_migrate
           return 1
         fi
@@ -62,7 +55,7 @@ parse_migrate_args() {
         return 2
         ;;
       *)
-        cli_migrate_print_error "Unknown argument: $1"
+        echo "error: Unknown argument: $1" >&2
         usage_migrate
         return 1
         ;;

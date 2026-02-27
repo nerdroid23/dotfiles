@@ -3,13 +3,5 @@
   "model": "claude-sonnet-4.5",
   "render_markdown": true,
   "screen_reader": false,
-  "theme": "auto",
-  "trusted_folders": [
-    "/Users/kratos/Code/init/expediente-medico",
-    "/Users/kratos/Code/personal/mutash-marketing",
-    "/Users/kratos/Code/personal/mutash",
-    "/Users/kratos/Code/init/terraregia-api",
-    "/Users/kratos/Code/personal/ephese-registry",
-    "/Users/kratos/Code/init/johndeere"
-  ]
+  "theme": "auto"
 }

@@ -3,16 +3,15 @@
 # CLI parsing for sync.sh
 
 usage_sync() {
-  echo "Usage: $0 [--dry-run]"
+  cat <<USAGE
+Usage: $0 [options]
+
+Options:
+  --dry-run    Preview actions without making changes
+  -h, --help   Show this help
+USAGE
 }
 
-cli_sync_print_error() {
-  if declare -f print_error >/dev/null 2>&1; then
-    print_error "$1"
-  else
-    echo "error $1" >&2
-  fi
-}
 
 parse_sync_args() {
   DRY_RUN=false
@@ -23,8 +22,12 @@ parse_sync_args() {
         DRY_RUN=true
         shift
         ;;
+      -h|--help)
+        usage_sync
+        return 2
+        ;;
       *)
-        cli_sync_print_error "Unknown argument: $1"
+        echo "error: Unknown argument: $1" >&2
         usage_sync
         return 1
         ;;

@@ -456,45 +456,22 @@ setup_external_drive_symlinks() {
 
   print_header "External drive symlinks"
 
-  local drive_setup_failed=false
+  local -a specs=(
+    "$HOME/.orbstack|$DRIVE/OrbStack|OrbStack"
+    "$HOME/Library/Developer/Xcode/DerivedData|$DRIVE/Xcode/DerivedData|Xcode DerivedData"
+    "$HOME/Library/Developer/CoreSimulator/Devices|$DRIVE/Xcode/Simulators|iOS Simulators"
+    "$HOME/Library/Android/sdk|$DRIVE/Android/sdk|Android SDK"
+    "$HOME/.android/avd|$DRIVE/Android/avd|Android AVDs"
+  )
 
-  setup_symlink_safe \
-    "$HOME/.orbstack" \
-    "$DRIVE/OrbStack" \
-    "OrbStack" || drive_setup_failed=true
-
-  if [[ "$drive_setup_failed" != "true" ]]; then
-    setup_symlink_safe \
-      "$HOME/Library/Developer/Xcode/DerivedData" \
-      "$DRIVE/Xcode/DerivedData" \
-      "Xcode DerivedData" || drive_setup_failed=true
-  fi
-
-  if [[ "$drive_setup_failed" != "true" ]]; then
-    setup_symlink_safe \
-      "$HOME/Library/Developer/CoreSimulator/Devices" \
-      "$DRIVE/Xcode/Simulators" \
-      "iOS Simulators" || drive_setup_failed=true
-  fi
-
-  if [[ "$drive_setup_failed" != "true" ]]; then
-    setup_symlink_safe \
-      "$HOME/Library/Android/sdk" \
-      "$DRIVE/Android/sdk" \
-      "Android SDK" || drive_setup_failed=true
-  fi
-
-  if [[ "$drive_setup_failed" != "true" ]]; then
-    setup_symlink_safe \
-      "$HOME/.android/avd" \
-      "$DRIVE/Android/avd" \
-      "Android AVDs" || drive_setup_failed=true
-  fi
-
-  if [[ "$drive_setup_failed" == "true" ]]; then
-    print_error "Drive setup aborted due to preexisting state. See errors above."
-    return 1
-  fi
+  local spec src dst label
+  for spec in "${specs[@]}"; do
+    IFS='|' read -r src dst label <<< "$spec"
+    if ! setup_symlink_safe "$src" "$dst" "$label"; then
+      print_error "Drive setup aborted due to preexisting state. See errors above."
+      return 1
+    fi
+  done
 }
 
 snapshot_macos_defaults() {
@@ -527,6 +504,9 @@ snapshot_macos_defaults() {
   if [[ "$DRY_RUN" != true ]]; then
     local domain safe
     for domain in "${macos_domains[@]}"; do
+      if [[ "$domain" == *_* ]]; then
+        print_warn "Domain '$domain' contains underscore - snapshot/restore mapping may break"
+      fi
       safe="${domain//\//_}"
       defaults export "$domain" "$snapshot_dir/${safe}.plist" 2>/dev/null || true
     done
@@ -540,8 +520,7 @@ apply_macos_defaults() {
   print_header "Applying macOS defaults"
   print_step "Running macos.sh..."
   if [[ "$DRY_RUN" != true ]]; then
-    # shellcheck source=macos.sh
-    source "$DOTFILES/macos.sh"
+    bash "$DOTFILES/macos.sh"
   else
     echo -e "  ${YELLOW}[dry-run]${RESET} source macos.sh"
   fi
@@ -570,6 +549,76 @@ create_local_overrides_file() {
   else
     run cp "$DOTFILES/zsh/.zsh/.zshrc.local.example" "$HOME/.zshrc.local"
     print_ok "~/.zshrc.local created from template"
+  fi
+}
+
+setup_ssh_key() {
+  print_header "SSH key"
+
+  local ssh_key="$HOME/.ssh/id_ed25519"
+
+  if [[ -f "$ssh_key" ]]; then
+    print_skip "SSH key ($ssh_key)"
+    return 0
+  fi
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} ssh-keygen -t ed25519"
+    echo -e "  ${YELLOW}[dry-run]${RESET} ssh-add ~/.ssh/id_ed25519"
+    echo -e "  ${YELLOW}[dry-run]${RESET} gh ssh-key add ~/.ssh/id_ed25519.pub"
+    return 0
+  fi
+
+  local email=""
+  if [[ -f "$HOME/.gitconfig-personal" ]]; then
+    email="$(git config --file "$HOME/.gitconfig-personal" user.email 2>/dev/null || true)"
+  fi
+  if [[ -z "$email" ]]; then
+    prompt email "  Email for SSH key" ""
+  fi
+
+  print_step "Generating ed25519 SSH key..."
+  mkdir -p "$HOME/.ssh"
+  if ! ssh-keygen -t ed25519 -C "$email" -f "$ssh_key"; then
+    print_warn "SSH key generation failed or was cancelled"
+    add_install_warning "SSH key was not generated. Run manually: ssh-keygen -t ed25519"
+    return 0
+  fi
+  print_ok "SSH key generated"
+
+  print_step "Adding key to ssh-agent..."
+  if eval "$(ssh-agent -s)" >/dev/null 2>&1 && ssh-add "$ssh_key" 2>/dev/null; then
+    print_ok "Key added to agent"
+  else
+    print_warn "Could not add key to ssh-agent (add manually: ssh-add ~/.ssh/id_ed25519)"
+    add_install_warning "SSH key generated but could not be added to ssh-agent"
+  fi
+
+  if command -v gh &>/dev/null; then
+    if gh auth status &>/dev/null; then
+      local key_title="dotfiles-install $(hostname) $(date +%Y-%m-%d)"
+      print_step "Adding public key to GitHub via gh..."
+      if gh ssh-key add "${ssh_key}.pub" --title "$key_title"; then
+        print_ok "SSH key added to GitHub"
+      else
+        print_warn "Failed to add SSH key to GitHub"
+        add_install_warning "SSH key generated but could not be added to GitHub automatically"
+      fi
+    else
+      print_warn "gh is not authenticated - skipping GitHub upload"
+      add_install_warning "SSH key generated but gh is not authenticated. Add manually: gh ssh-key add ~/.ssh/id_ed25519.pub"
+      echo ""
+      echo "  Your public key:"
+      cat "${ssh_key}.pub"
+      echo ""
+    fi
+  else
+    print_warn "gh CLI not found - skipping GitHub upload"
+    add_install_warning "SSH key generated but gh is not installed. Add key to GitHub manually."
+    echo ""
+    echo "  Your public key:"
+    cat "${ssh_key}.pub"
+    echo ""
   fi
 }
 

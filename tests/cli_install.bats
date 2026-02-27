@@ -41,6 +41,17 @@ load test_helper
   [[ "$output" == *"Usage:"* ]]
 }
 
+@test "parse_install_args returns 2 on --help" {
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/cli_install.sh"
+    parse_install_args --help
+    exit $?
+  '
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"Usage:"* ]]
+}
+
 @test "common run helper respects dry-run and does not mutate" {
   local target="$TEST_TMP/should-not-exist"
 

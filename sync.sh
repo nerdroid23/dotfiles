@@ -16,7 +16,12 @@ trap 'print_error "Failed at line $LINENO in ${FUNCNAME[0]:-main}: $BASH_COMMAND
 main() {
   show_sync_banner
 
-  if ! parse_sync_args "$@"; then
+  local parse_status=0
+  parse_sync_args "$@" || parse_status=$?
+  if [[ "$parse_status" -eq 2 ]]; then
+    exit 0
+  fi
+  if [[ "$parse_status" -ne 0 ]]; then
     exit 1
   fi
 

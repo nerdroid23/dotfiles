@@ -2,7 +2,7 @@
 
 # Uninstaller phase functions for uninstall.sh.
 # Expected globals from caller:
-#   DOTFILES, DRIVE
+#   DOTFILES, DRIVE, DRY_RUN
 # Shared helpers/colors from lib/common.sh are used and some output helpers are
 # overridden here to preserve the uninstaller's visual style.
 
@@ -65,6 +65,10 @@ print_uninstall_summary() {
 }
 
 confirm_uninstall() {
+  if [[ "$DRY_RUN" == true ]]; then
+    return 0
+  fi
+
   local confirm
   read -rp "  Continue? [y/N] " confirm
   if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
@@ -79,7 +83,7 @@ uninstall_mackup() {
 
   if command -v mackup &>/dev/null && [[ -f "$HOME/.mackup.cfg" ]]; then
     print_step "Running mackup uninstall --force..."
-    mackup --config-file="$DOTFILES/mackup/.mackup.cfg" uninstall --force
+    run mackup --config-file="$DOTFILES/mackup/.mackup.cfg" uninstall --force
     print_ok "Mackup symlinks replaced with real files"
   else
     print_skip "Mackup (not installed or no config)"
@@ -91,7 +95,7 @@ remove_stow_symlinks() {
 
   if command -v stow &>/dev/null; then
     print_step "Running stow --delete..."
-    stow --delete --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
+    run stow --delete --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
     print_ok "Stow symlinks removed"
   else
     print_skip "Stow (not installed)"
@@ -102,14 +106,14 @@ remove_git_identity_files() {
   print_header "Git identity files"
 
   if [[ -f "$HOME/.gitconfig-work" ]]; then
-    rm -f "$HOME/.gitconfig-work"
+    run rm -f "$HOME/.gitconfig-work"
     print_ok "~/.gitconfig-work removed"
   else
     print_skip "~/.gitconfig-work (not found)"
   fi
 
   if [[ -f "$HOME/.gitconfig-personal" ]]; then
-    rm -f "$HOME/.gitconfig-personal"
+    run rm -f "$HOME/.gitconfig-personal"
     print_ok "~/.gitconfig-personal removed"
   else
     print_skip "~/.gitconfig-personal (not found)"
@@ -120,7 +124,7 @@ remove_hushlogin() {
   print_header ".hushlogin"
 
   if [[ -f "$HOME/.hushlogin" ]]; then
-    rm -f "$HOME/.hushlogin"
+    run rm -f "$HOME/.hushlogin"
     print_ok "~/.hushlogin removed"
   else
     print_skip "~/.hushlogin (not found)"
@@ -132,8 +136,8 @@ uninstall_laravel_valet() {
 
   if command -v valet &>/dev/null; then
     print_step "Uninstalling Laravel Valet..."
-    valet uninstall --force
-    composer global remove laravel/valet
+    run valet uninstall --force
+    run composer global remove laravel/valet
     print_ok "Laravel Valet removed"
   else
     print_skip "Laravel Valet (not installed)"
@@ -145,8 +149,7 @@ uninstall_oh_my_zsh() {
 
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
     print_step "Uninstalling Oh My Zsh..."
-    # Use OMZ's own uninstaller non-interactively
-    ZSH="$HOME/.oh-my-zsh" bash "$HOME/.oh-my-zsh/tools/uninstall.sh" --unattended
+    run env ZSH="$HOME/.oh-my-zsh" bash "$HOME/.oh-my-zsh/tools/uninstall.sh" --unattended
     print_ok "Oh My Zsh removed"
   else
     print_skip "Oh My Zsh (not installed)"
@@ -158,21 +161,29 @@ restore_macos_defaults() {
   local snapshot_dir="$HOME/.dotfiles-macos-snapshot"
 
   if [[ -d "$snapshot_dir" ]]; then
-    local plist domain
-    for plist in "$snapshot_dir"/*.plist; do
-      domain="$(basename "$plist" .plist)"
-      # Reverse the safe-name encoding (/ was replaced with _ during snapshot)
-      # Safe because none of the original domain names contain underscores
-      domain="${domain//_//}"
-      defaults import "$domain" "$plist" 2>/dev/null || true
-    done
+    if [[ "$DRY_RUN" == true ]]; then
+      echo -e "  ${YELLOW}[dry-run]${RESET} Would restore macOS defaults from $snapshot_dir"
+      echo -e "  ${YELLOW}[dry-run]${RESET} Would restart Dock, Finder, Safari, etc."
+      echo -e "  ${YELLOW}[dry-run]${RESET} Would remove $snapshot_dir"
+    else
+      local plist domain
+      for plist in "$snapshot_dir"/*.plist; do
+        domain="$(basename "$plist" .plist)"
+        if [[ "$domain" == *_* ]]; then
+          print_warn "Snapshot '$domain' contains underscore - reverse mapping may be wrong"
+        fi
+        # Reverse the safe-name encoding (/ was replaced with _ during snapshot)
+        domain="${domain//_//}"
+        defaults import "$domain" "$plist" 2>/dev/null || true
+      done
 
-    local app
-    for app in "Dock" "Finder" "Safari" "SystemUIServer" "Activity Monitor"; do
-      killall "$app" &>/dev/null || true
-    done
+      local app
+      for app in "Dock" "Finder" "Safari" "SystemUIServer" "Activity Monitor"; do
+        killall "$app" &>/dev/null || true
+      done
 
-    rm -rf "$snapshot_dir"
+      rm -rf "$snapshot_dir"
+    fi
     print_ok "macOS defaults restored and snapshot removed"
   else
     print_skip "macOS defaults (no snapshot found at $snapshot_dir)"
@@ -185,6 +196,17 @@ teardown_symlink() {
 
   if [[ ! -L "$src" ]]; then
     print_skip "$label (not a symlink)"
+    return
+  fi
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} rm \"$src\""
+    if [[ -d "$dst" ]]; then
+      echo -e "  ${YELLOW}[dry-run]${RESET} mv \"$dst\" \"$src\""
+      print_ok "$label would be restored to $src"
+    else
+      print_ok "$label symlink would be removed"
+    fi
     return
   fi
 
@@ -235,6 +257,12 @@ reverse_drive_symlinks() {
 
 prompt_remove_homebrew() {
   print_header "Homebrew"
+
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} Would prompt to remove Homebrew"
+    return 0
+  fi
+
   echo ""
   echo -e "  ${RED}${BOLD}WARNING:${RESET} This will remove Homebrew AND all installed formulae,"
   echo "  casks, and packages. This cannot be undone."
@@ -254,13 +282,19 @@ prompt_remove_homebrew() {
 print_uninstall_done() {
   echo -e "\n${BOLD}${GREEN}  Done!${RESET}"
   echo ""
-  echo "  Not removed (intentional):"
-  echo "   • ~/work/ and ~/projects/"
-  if [[ -n "$DRIVE" ]]; then
-    echo "   • $DRIVE/work/ and $DRIVE/projects/"
+  if [[ "$DRY_RUN" == true ]]; then
+    echo "  This was a dry run - no changes were made."
+    echo "  Run without --dry-run to apply changes."
+    echo ""
+  else
+    echo "  Not removed (intentional):"
+    echo "   • ~/work/ and ~/projects/"
+    if [[ -n "$DRIVE" ]]; then
+      echo "   • $DRIVE/work/ and $DRIVE/projects/"
+    fi
+    echo "   • ~/.zshrc.local"
+    echo ""
+    echo "  You may want to restart your terminal."
+    echo ""
   fi
-  echo "   • ~/.zshrc.local"
-  echo ""
-  echo "  You may want to restart your terminal."
-  echo ""
 }
