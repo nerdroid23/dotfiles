@@ -220,6 +220,13 @@ Sign into iCloud in System Settings, wait for sync, then run Mackup manually:
 mackup restore
 ```
 
+**Safari preferences fail in `macos.sh`**
+Newer macOS versions can block some `com.apple.Safari` preference writes. This is non-fatal.
+Close Safari and rerun:
+```bash
+bash ~/dotfiles/macos.sh
+```
+
 ### Re-running install
 
 The installer is idempotent - safe to run multiple times. It skips:

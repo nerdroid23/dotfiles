@@ -4,6 +4,15 @@
 
 set -euo pipefail
 
+safari_defaults_write() {
+  local key="$1"
+  shift
+
+  if ! defaults write com.apple.Safari "$key" "$@"; then
+    echo "warn Safari preference skipped (close Safari and re-run if needed): $key" >&2
+  fi
+}
+
 # ==============================================================================
 # Global System Settings
 # ==============================================================================
@@ -107,17 +116,17 @@ defaults write com.apple.dock static-only -bool false
 # ==============================================================================
 
 # Show full URL in address bar
-defaults write com.apple.Safari ShowFullURLInSmartSearchField -bool true
+safari_defaults_write ShowFullURLInSmartSearchField -bool true
 
 # Don't automatically open "safe" downloads
-defaults write com.apple.Safari AutoOpenSafeDownloads -bool false
+safari_defaults_write AutoOpenSafeDownloads -bool false
 
 # Show Develop menu in menu bar
-defaults write com.apple.Safari IncludeDevelopMenu -bool true
+safari_defaults_write IncludeDevelopMenu -bool true
 
 # Enable WebKit developer tools in Safari
-defaults write com.apple.Safari WebKitDeveloperExtrasEnabledPreferenceKey -bool true
-defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebKit2DeveloperExtrasEnabled -bool true
+safari_defaults_write WebKitDeveloperExtrasEnabledPreferenceKey -bool true
+safari_defaults_write com.apple.Safari.ContentPageGroupIdentifier.WebKit2DeveloperExtrasEnabled -bool true
 
 # ==============================================================================
 # Keyboard Settings
