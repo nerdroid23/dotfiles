@@ -149,9 +149,13 @@ EOF
 @test "stow_dotfiles dry-run installs stow when missing" {
   local fake_dotfiles="$TEST_TMP/dotfiles"
   local fake_home="$TEST_TMP/home"
-  mkdir -p "$fake_dotfiles" "$fake_home"
+  mkdir -p "$fake_dotfiles/zsh/.zsh" "$fake_home/.zsh"
   echo "# existing omz zshrc" > "$fake_home/.zshrc"
   echo "[user]" > "$fake_home/.gitconfig"
+  echo "export TEST=1" > "$fake_home/.zsh/exports.zsh"
+  echo "export PATH=/tmp:\$PATH" > "$fake_home/.zsh/paths.zsh"
+  echo "alias ll='ls -la'" > "$fake_home/.zsh/aliases.zsh"
+  echo "hello() { :; }" > "$fake_home/.zsh/functions.zsh"
 
   run bash -c '
     source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
@@ -170,7 +174,10 @@ EOF
   [[ "$output" == *'mv '"$fake_home"'/.zshrc '"$fake_home"'/.zshrc.pre-dotfiles-backup'* ]]
   [[ "$output" == *"Backing up existing $fake_home/.gitconfig before stow"* ]]
   [[ "$output" == *'mv '"$fake_home"'/.gitconfig '"$fake_home"'/.gitconfig.pre-dotfiles-backup'* ]]
+  [[ "$output" == *"Backing up existing $fake_home/.zsh before stow"* ]]
+  [[ "$output" == *'mv '"$fake_home"'/.zsh '"$fake_home"'/.zsh.pre-dotfiles-backup'* ]]
   [[ "$output" == *"stow --restow"* ]]
+  [[ "$output" == *"Verify ~/.zshrc and ~/.zsh module files exist"* ]]
 }
 
 @test "backup_existing_stow_target moves real file" {
@@ -190,6 +197,64 @@ EOF
   [ ! -e "$fake_home/.gitconfig" ]
   [ -f "$fake_home/.gitconfig.pre-dotfiles-backup" ]
   [[ "$(cat "$fake_home/.gitconfig.pre-dotfiles-backup")" == *"existing omz zshrc"* ]]
+}
+
+@test "backup_existing_stow_target skips targets under symlinked parent" {
+  local fake_home="$TEST_TMP/home"
+  local fake_repo="$TEST_TMP/repo"
+  mkdir -p "$fake_home" "$fake_repo/.zsh"
+  ln -s "$fake_repo/.zsh" "$fake_home/.zsh"
+  echo "export TEST=1" > "$fake_repo/.zsh/exports.zsh"
+
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
+    HOME="'"$fake_home"'"
+    DRY_RUN=false
+    backup_existing_stow_target "'"$fake_home"'/.zsh/exports.zsh"
+  '
+
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"parent symlinked"* ]]
+  [ -f "$fake_repo/.zsh/exports.zsh" ]
+  [ ! -e "$fake_repo/.zsh/exports.zsh.pre-dotfiles-backup" ]
+}
+
+@test "verify_zsh_layout fails when required module is missing" {
+  local fake_home="$TEST_TMP/home"
+  mkdir -p "$fake_home/.zsh"
+  touch "$fake_home/.zshrc" "$fake_home/.zsh/exports.zsh" "$fake_home/.zsh/paths.zsh" "$fake_home/.zsh/aliases.zsh"
+
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
+    HOME="'"$fake_home"'"
+    DRY_RUN=false
+    verify_zsh_layout
+  '
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Missing required zsh file after stow"* ]]
+  [[ "$output" == *"$fake_home/.zsh/functions.zsh"* ]]
+}
+
+@test "create_local_overrides_file fails clearly when template is missing" {
+  local fake_home="$TEST_TMP/home"
+  local fake_dotfiles="$TEST_TMP/dotfiles"
+  mkdir -p "$fake_home" "$fake_dotfiles/zsh/.zsh"
+
+  run bash -c '
+    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
+    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
+    HOME="'"$fake_home"'"
+    DOTFILES="'"$fake_dotfiles"'"
+    DRY_RUN=false
+    create_local_overrides_file
+  '
+
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Missing local overrides template"* ]]
+  [[ "$output" == *"damaged locally"* ]]
 }
 
 # ==============================================================================

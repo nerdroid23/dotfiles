@@ -407,6 +407,7 @@ stow_dotfiles() {
 
   print_step "Running stow --restow..."
   run stow --restow --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
+  verify_zsh_layout
   print_ok "Symlinks created"
 }
 
@@ -421,11 +422,31 @@ backup_path_for_stow_target() {
   echo "$backup"
 }
 
+target_has_symlink_ancestor() {
+  local target="$1"
+  local current
+
+  current="${target%/*}"
+  while [[ "$current" != "$HOME" && "$current" != "/" ]]; do
+    if [[ -L "$current" ]]; then
+      return 0
+    fi
+    current="${current%/*}"
+  done
+
+  return 1
+}
+
 backup_existing_stow_target() {
   local target="$1"
   local backup=""
 
   if [[ ! -e "$target" || -L "$target" ]]; then
+    return 0
+  fi
+
+  if target_has_symlink_ancestor "$target"; then
+    print_skip "$target (parent symlinked; not backing up inside stow target)"
     return 0
   fi
 
@@ -445,11 +466,7 @@ backup_existing_stow_conflicts() {
 .gitignore-global
 .mackup.cfg
 .zshrc
-.zsh/.zshrc.local.example
-.zsh/aliases.zsh
-.zsh/exports.zsh
-.zsh/functions.zsh
-.zsh/paths.zsh
+.zsh
 .config/starship.toml
 .claude/settings.json
 .codex/config.toml
@@ -457,6 +474,30 @@ backup_existing_stow_conflicts() {
 .copilot/mcp-config.json
 .gemini/settings.json
 EOF
+}
+
+verify_zsh_layout() {
+  if [[ "$DRY_RUN" == true ]]; then
+    echo -e "  ${YELLOW}[dry-run]${RESET} Verify ~/.zshrc and ~/.zsh module files exist"
+    return 0
+  fi
+
+  local required_paths=(
+    "$HOME/.zshrc"
+    "$HOME/.zsh/exports.zsh"
+    "$HOME/.zsh/paths.zsh"
+    "$HOME/.zsh/aliases.zsh"
+    "$HOME/.zsh/functions.zsh"
+  )
+  local path
+
+  for path in "${required_paths[@]}"; do
+    if [[ ! -e "$path" ]]; then
+      print_error "Missing required zsh file after stow: $path"
+      print_error "Your dotfiles clone may be damaged locally. Refresh the repo clone and rerun install."
+      return 1
+    fi
+  done
 }
 
 setup_git_identity_files() {
@@ -611,11 +652,16 @@ run_mackup_restore() {
 
 create_local_overrides_file() {
   print_header "Local overrides"
+  local template="$DOTFILES/zsh/.zsh/.zshrc.local.example"
 
   if [[ -f "$HOME/.zshrc.local" ]]; then
     print_skip "~/.zshrc.local"
+  elif [[ ! -f "$template" ]]; then
+    print_error "Missing local overrides template: $template"
+    print_error "Your dotfiles clone may be damaged locally. Refresh the repo clone and rerun install."
+    return 1
   else
-    run cp "$DOTFILES/zsh/.zsh/.zshrc.local.example" "$HOME/.zshrc.local"
+    run cp "$template" "$HOME/.zshrc.local"
     print_ok "~/.zshrc.local created from template"
   fi
 }

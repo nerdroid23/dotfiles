@@ -55,6 +55,9 @@ Selected AI CLI config files are tracked as dotfiles instead via the `ai-cli` st
 (for example `~/.gemini/settings.json`, `~/.copilot/*.json`, `~/.claude/settings.json`,
 and `~/.codex/config.toml`).
 
+`~/.gitconfig` is also repo-managed via `stow`. Mackup intentionally ignores the built-in
+`git` app so old machine-specific Git config does not get restored over the repo version.
+
 ## Volta to mise Migration Script
 
 Run this one-time migration helper to move from Volta-managed Node tooling to mise:
