@@ -71,7 +71,6 @@ mas "Microsoft Excel", id: 462058435
 mas "NordVPN", id: 905953485
 mas "Numbers", id: 409203825
 mas "Pages", id: 409201541
-mas "TestFlight", id: 899247664
 mas "Transporter", id: 1450874784
 mas "WhatsApp", id: 310633997
 mas "Xcode", id: 497799835
