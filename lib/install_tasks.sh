@@ -403,28 +403,60 @@ stow_dotfiles() {
     print_ok "stow installed"
   fi
 
-  backup_existing_zshrc_for_stow
+  backup_existing_stow_conflicts
 
   print_step "Running stow --restow..."
   run stow --restow --dir="$DOTFILES" --target="$HOME" mackup git zsh starship ai-cli
   print_ok "Symlinks created"
 }
 
-backup_existing_zshrc_for_stow() {
-  local zshrc="$HOME/.zshrc"
-  local backup="$HOME/.zshrc.pre-dotfiles-backup"
+backup_path_for_stow_target() {
+  local target="$1"
+  local backup="${target}.pre-dotfiles-backup"
 
-  if [[ ! -e "$zshrc" || -L "$zshrc" ]]; then
+  if [[ -e "$backup" ]]; then
+    backup="${backup}.$(date +%Y%m%d%H%M%S)"
+  fi
+
+  echo "$backup"
+}
+
+backup_existing_stow_target() {
+  local target="$1"
+  local backup=""
+
+  if [[ ! -e "$target" || -L "$target" ]]; then
     return 0
   fi
 
-  if [[ -e "$backup" ]]; then
-    backup="$HOME/.zshrc.pre-dotfiles-backup.$(date +%Y%m%d%H%M%S)"
-  fi
+  backup="$(backup_path_for_stow_target "$target")"
+  print_step "Backing up existing $target before stow..."
+  run mv "$target" "$backup"
+  print_ok "$target backed up to $backup"
+}
 
-  print_step "Backing up existing ~/.zshrc before stow..."
-  run mv "$zshrc" "$backup"
-  print_ok "~/.zshrc backed up to $backup"
+backup_existing_stow_conflicts() {
+  local relative_path target
+  while IFS= read -r relative_path; do
+    target="$HOME/$relative_path"
+    backup_existing_stow_target "$target"
+  done <<'EOF'
+.gitconfig
+.gitignore-global
+.mackup.cfg
+.zshrc
+.zsh/.zshrc.local.example
+.zsh/aliases.zsh
+.zsh/exports.zsh
+.zsh/functions.zsh
+.zsh/paths.zsh
+.config/starship.toml
+.claude/settings.json
+.codex/config.toml
+.copilot/config.json
+.copilot/mcp-config.json
+.gemini/settings.json
+EOF
 }
 
 setup_git_identity_files() {

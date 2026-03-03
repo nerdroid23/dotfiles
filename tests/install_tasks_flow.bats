@@ -151,6 +151,7 @@ EOF
   local fake_home="$TEST_TMP/home"
   mkdir -p "$fake_dotfiles" "$fake_home"
   echo "# existing omz zshrc" > "$fake_home/.zshrc"
+  echo "[user]" > "$fake_home/.gitconfig"
 
   run bash -c '
     source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
@@ -167,26 +168,28 @@ EOF
   [[ "$output" == *"brew install stow"* ]]
   [[ "$output" == *"Backing up existing ~/.zshrc before stow"* ]]
   [[ "$output" == *'mv '"$fake_home"'/.zshrc '"$fake_home"'/.zshrc.pre-dotfiles-backup'* ]]
+  [[ "$output" == *"Backing up existing $fake_home/.gitconfig before stow"* ]]
+  [[ "$output" == *'mv '"$fake_home"'/.gitconfig '"$fake_home"'/.gitconfig.pre-dotfiles-backup'* ]]
   [[ "$output" == *"stow --restow"* ]]
 }
 
-@test "backup_existing_zshrc_for_stow moves real zshrc" {
+@test "backup_existing_stow_target moves real file" {
   local fake_home="$TEST_TMP/home"
   mkdir -p "$fake_home"
-  echo "# existing omz zshrc" > "$fake_home/.zshrc"
+  echo "# existing omz zshrc" > "$fake_home/.gitconfig"
 
   run bash -c '
     source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
     source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
     HOME="'"$fake_home"'"
     DRY_RUN=false
-    backup_existing_zshrc_for_stow
+    backup_existing_stow_target "'"$fake_home"'/.gitconfig"
   '
 
   [ "$status" -eq 0 ]
-  [ ! -e "$fake_home/.zshrc" ]
-  [ -f "$fake_home/.zshrc.pre-dotfiles-backup" ]
-  [[ "$(cat "$fake_home/.zshrc.pre-dotfiles-backup")" == *"existing omz zshrc"* ]]
+  [ ! -e "$fake_home/.gitconfig" ]
+  [ -f "$fake_home/.gitconfig.pre-dotfiles-backup" ]
+  [[ "$(cat "$fake_home/.gitconfig.pre-dotfiles-backup")" == *"existing omz zshrc"* ]]
 }
 
 # ==============================================================================
