@@ -65,30 +65,6 @@ EOF
   [[ "$output" == *"Not signed into App Store"* ]]
 }
 
-@test "configure_xcode_post_install dry-run shows license and first-launch commands when Xcode is installed" {
-  local fake_apps="$TEST_TMP/apps"
-  mkdir -p "$fake_apps/Xcode.app"
-
-  run bash -c '
-    source "'"$BATS_TEST_DIRNAME"'/../lib/common.sh"
-    source "'"$BATS_TEST_DIRNAME"'/../lib/install_tasks.sh"
-
-    DRY_RUN=true
-    XCODE_APP_PATH="'"$fake_apps"'/Xcode.app"
-    command() {
-      if [[ "$1" == "-v" && "$2" == "xcodebuild" ]]; then
-        return 0
-      fi
-      builtin command "$@"
-    }
-    configure_xcode_post_install
-  '
-
-  [ "$status" -eq 0 ]
-  [[ "$output" == *"xcodebuild -license accept"* ]]
-  [[ "$output" == *"xcodebuild -runFirstLaunch"* ]]
-}
-
 @test "park_valet_directories dry-run includes local and drive paths" {
   local fake_home="$TEST_TMP/home"
   mkdir -p "$fake_home"

@@ -332,45 +332,6 @@ install_mas_apps_non_blocking() {
   fi
 }
 
-configure_xcode_post_install() {
-  print_header "Xcode post-install"
-
-  local xcode_app="${XCODE_APP_PATH:-/Applications/Xcode.app}"
-
-  if [[ ! -d "$xcode_app" ]]; then
-    print_skip "Xcode.app (not installed)"
-    return 0
-  fi
-
-  if ! command -v xcodebuild &>/dev/null; then
-    print_warn "xcodebuild not found - skipping Xcode post-install setup"
-    add_install_warning "Xcode post-install setup skipped because xcodebuild was unavailable"
-    return 0
-  fi
-
-  if [[ "$DRY_RUN" == true ]]; then
-    echo -e "  ${YELLOW}[dry-run]${RESET} sudo -n xcodebuild -license accept"
-    echo -e "  ${YELLOW}[dry-run]${RESET} sudo -n xcodebuild -runFirstLaunch"
-    return 0
-  fi
-
-  print_step "Accepting Xcode license..."
-  if sudo -n xcodebuild -license accept >/dev/null 2>&1; then
-    print_ok "Xcode license accepted"
-  else
-    print_warn "Could not auto-accept Xcode license"
-    add_install_warning "Run sudo xcodebuild -license accept to finish Xcode setup"
-  fi
-
-  print_step "Running Xcode first launch setup..."
-  if sudo -n xcodebuild -runFirstLaunch >/dev/null 2>&1; then
-    print_ok "Xcode first launch setup complete"
-  else
-    print_warn "Could not run Xcode first launch setup automatically"
-    add_install_warning "Run sudo xcodebuild -runFirstLaunch to finish Xcode setup"
-  fi
-}
-
 install_laravel_valet() {
   print_header "Laravel Valet"
 

@@ -46,7 +46,6 @@ main() {
   install_oh_my_zsh
   run_brew_bundle_non_mas_non_bootstrap
   install_mas_apps_non_blocking
-  configure_xcode_post_install
   stow_dotfiles
   setup_git_identity_files
   create_project_directories
