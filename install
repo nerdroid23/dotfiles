@@ -41,6 +41,7 @@ echo "Setting up git..."
 ln -s $DOTFILES/.gitconfig $HOME/.gitconfig
 ln -s $DOTFILES/.gitconfig-init $HOME/.gitconfig-init
 ln -s $DOTFILES/.gitconfig-personal $HOME/.gitconfig-personal
+ln -s $DOTFILES/claude-bot/gitconfig.agent $HOME/.gitconfig.agent
 
 ln -s $DOTFILES/.gitignore-global $HOME/.gitignore-global
 git config --global core.excludesfile $HOME/.global-gitignore

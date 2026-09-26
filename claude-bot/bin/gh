@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# gh shim: runs the real gh as nerdroid-claude[bot] using a GitHub App
+# installation token for the owner of the target repository.
+set -euo pipefail
+
+self=${BASH_SOURCE[0]}
+while [ -L "$self" ]; do
+  target=$(readlink "$self")
+  case $target in /*) self=$target ;; *) self=$(dirname "$self")/$target ;; esac
+done
+BIN_DIR=$(cd "$(dirname "$self")" && pwd -P)
+# shellcheck source-path=SCRIPTDIR source=../config.sh
+. "$BIN_DIR/../config.sh"
+
+die() { printf 'gh (claude-bot): %s\n' "$*" >&2; exit 1; }
+
+find_real_gh() {
+  local dir resolved IFS=:
+  for dir in $PATH; do
+    [ -n "$dir" ] || continue
+    resolved=$(cd "$dir" 2>/dev/null && pwd -P) || continue
+    [ "$resolved" = "$BIN_DIR" ] && continue
+    if [ -x "$dir/gh" ] && [ ! -d "$dir/gh" ]; then
+      printf '%s\n' "$dir/gh"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Owner from a git remote URL: https://github.com/O/R.git, git@github.com:O/R.git,
+# ssh://git@github.com/O/R.git
+owner_from_url() {
+  local u=$1
+  case $u in
+    *://*) u=${u#*://}; u=${u#*@}; u=${u#*/} ;;
+    *@*:*) u=${u#*:} ;;
+    *) return 1 ;;
+  esac
+  u=${u#/}
+  [ -n "${u%%/*}" ] || return 1
+  printf '%s\n' "${u%%/*}"
+}
+
+# Owner from a -R/--repo value: OWNER/REPO, HOST/OWNER/REPO or a URL.
+owner_from_repo_arg() {
+  local r=$1 rest
+  case $r in
+    *://* | *@*:*) owner_from_url "$r"; return ;;
+  esac
+  rest=${r#*/}
+  case $rest in
+    */*) printf '%s\n' "${rest%%/*}" ;;  # HOST/OWNER/REPO
+    *) printf '%s\n' "${r%%/*}" ;;       # OWNER/REPO
+  esac
+}
+
+valid_owner() {
+  case $1 in
+    '' | -* | *[!A-Za-z0-9-]*) return 1 ;;
+  esac
+}
+
+owner_from_git() {
+  local line remote url
+  git rev-parse --git-dir >/dev/null 2>&1 || return 1
+  # Remote chosen with `gh repo set-default`.
+  while IFS= read -r line; do
+    case $line in
+      *' base')
+        remote=${line#remote.}
+        remote=${remote%.gh-resolved base}
+        if url=$(git config --get "remote.$remote.url") && owner_from_url "$url"; then
+          return 0
+        fi
+        ;;
+    esac
+  done < <(git config --get-regexp '^remote\..*\.gh-resolved$' 2>/dev/null || true)
+  # Same order gh uses when no default is set.
+  for remote in upstream github origin; do
+    if url=$(git config --get "remote.$remote.url" 2>/dev/null) && owner_from_url "$url"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Owner of a repository named in the command's own arguments.
+owner_from_args() {
+  local cmd=${1:-} sub=${2:-} arg prev='' o
+  [ $# -ge 2 ] && shift 2 || return 1
+  case $cmd in
+    repo)
+      case $sub in
+        clone | view | fork | sync) ;;
+        *) return 1 ;;
+      esac
+      # First positional with a slash: OWNER/REPO, HOST/OWNER/REPO or a URL.
+      for arg in "$@"; do
+        case $arg in
+          --) return 1 ;;
+          -*) continue ;;
+          */*) owner_from_repo_arg "$arg"; return ;;
+        esac
+      done
+      ;;
+    pr | issue)
+      [ "$sub" = create ] && return 1
+      for arg in "$@"; do
+        case $prev in
+          -t | --title | -b | --body) prev=$arg; continue ;;
+        esac
+        case $arg in
+          https://github.com/*/* | http://github.com/*/* | github.com/*/*)
+            owner_from_url "https://${arg#*://}"; return ;;
+        esac
+        prev=$arg
+      done
+      ;;
+    api)
+      set -- "$sub" "$@"
+      for arg in "$@"; do
+        case $arg in
+          repos/*/* | /repos/*/* | orgs/* | /orgs/*)
+            o=${arg#/}; o=${o#*/}; o=${o%%/*}; o=${o%%\?*}
+            printf '%s\n' "$o"
+            return
+            ;;
+        esac
+      done
+      ;;
+  esac
+  return 1
+}
+
+resolve_owner() {
+  local prev='' arg o
+  for arg in "$@"; do
+    if [ "$prev" = -R ] || [ "$prev" = --repo ]; then
+      owner_from_repo_arg "$arg"
+      return
+    fi
+    case $arg in
+      --) break ;;
+      --repo=*) owner_from_repo_arg "${arg#--repo=}"; return ;;
+      -R?*) owner_from_repo_arg "${arg#-R}"; return ;;
+    esac
+    prev=$arg
+  done
+  # Placeholders such as {owner} are left to the git remotes.
+  if o=$(owner_from_args "$@") && valid_owner "$o"; then
+    printf '%s\n' "$o"
+    return
+  fi
+  if [ -n "${GH_REPO:-}" ]; then
+    owner_from_repo_arg "$GH_REPO"
+    return
+  fi
+  owner_from_git || printf '%s\n' "$CLAUDE_BOT_DEFAULT_OWNER"
+}
+
+real_gh=$(find_real_gh) || die "the real gh was not found on PATH"
+
+# Commands that need no token.
+case "${1:-}" in
+  '' | --version | version | help | --help | -h | completion)
+    exec "$real_gh" "$@" ;;
+esac
+
+owner=$(resolve_owner "$@")
+[ -n "$owner" ] || owner=$CLAUDE_BOT_DEFAULT_OWNER
+
+if [ "${1:-}" = auth ]; then
+  case "${2:-}" in
+    status)
+      printf 'gh runs as %s via a GitHub App installation token for %s.\n' \
+        "$CLAUDE_BOT_LOGIN" "$owner"
+      printf 'The token is minted per repository owner by claude-bot-token; there is no gh login.\n'
+      exit 0
+      ;;
+    login | logout | token | switch | refresh | setup-git)
+      die "'gh auth ${2}' is disabled for Claude Code. gh already runs as $CLAUDE_BOT_LOGIN. Stop and ask the user if you need a different GitHub identity."
+      ;;
+  esac
+fi
+
+args=("$@")
+if [ "${1:-}" = pr ] && [ "${2:-}" = create ]; then
+  has_reviewer=0
+  for arg in "$@"; do
+    case $arg in
+      --) break ;;
+      -r | --reviewer | --reviewer=* | -r?*) has_reviewer=1 ;;
+      -w | --web) has_reviewer=1 ;;  # the browser form handles reviewers itself
+    esac
+  done
+  if [ "$has_reviewer" = 0 ] && [ -n "$CLAUDE_BOT_REVIEWER" ]; then
+    args+=(--reviewer "$CLAUDE_BOT_REVIEWER")
+  fi
+fi
+
+# claude-bot-token exits 3 when the App is not installed on the owner. Fall
+# back to the default owner's token, which can still read public repos.
+errfile=$(mktemp "${TMPDIR:-/tmp}/claude-bot-gh.XXXXXX")
+rc=0
+token=$("$BIN_DIR/claude-bot-token" "$owner" 2>"$errfile") || rc=$?
+if [ "$rc" = 3 ] && [ "$owner" != "$CLAUDE_BOT_DEFAULT_OWNER" ]; then
+  printf 'claude-bot: %s is not installed on %s; using the %s token (read-only access to public repos; writes will fail)\n' \
+    "$CLAUDE_BOT_APP_SLUG" "$owner" "$CLAUDE_BOT_DEFAULT_OWNER" >&2
+  rc=0
+  token=$("$BIN_DIR/claude-bot-token" "$CLAUDE_BOT_DEFAULT_OWNER" 2>"$errfile") || rc=$?
+  owner=$CLAUDE_BOT_DEFAULT_OWNER
+fi
+if [ "$rc" != 0 ]; then
+  cat "$errfile" >&2
+  rm -f "$errfile"
+  die "could not get a $CLAUDE_BOT_LOGIN token for $owner (see message above)"
+fi
+rm -f "$errfile"
+
+mkdir -p "$CLAUDE_BOT_GH_CONFIG_DIR"
+chmod 700 "$CLAUDE_BOT_GH_CONFIG_DIR"
+export GH_TOKEN=$token
+export GH_CONFIG_DIR=$CLAUDE_BOT_GH_CONFIG_DIR
+unset GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
+
+exec "$real_gh" "${args[@]}"

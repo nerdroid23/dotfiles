@@ -1,0 +1,25 @@
+# Git config for Claude Code sessions (used via GIT_CONFIG_GLOBAL).
+# Keeps the user's global config, then makes git act as nerdroid-claude[bot].
+# Later sections win over the included file, including its includeIf rules.
+
+[include]
+    path = ~/.gitconfig
+
+[user]
+    name = nerdroid-claude[bot]
+    email = 334336263+nerdroid-claude[bot]@users.noreply.github.com
+
+# An empty helper resets the list (drops osxkeychain and the gh helper).
+[credential "https://github.com"]
+    helper =
+    helper = !$HOME/.dotfiles/claude-bot/bin/git-credential-claude-bot
+    useHttpPath = true
+
+[credential "https://gist.github.com"]
+    helper =
+    helper = !$HOME/.dotfiles/claude-bot/bin/git-credential-claude-bot
+
+# SSH would authenticate as the user's key; force HTTPS so the bot token is used.
+[url "https://github.com/"]
+    insteadOf = git@github.com:
+    insteadOf = ssh://git@github.com/

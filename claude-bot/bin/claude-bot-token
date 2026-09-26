@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# Print a GitHub App installation token for the nerdroid-claude App's
+# installation on OWNER (a user or an org). Tokens are cached per owner and
+# reused while more than 5 minutes remain.
+#
+# Usage: claude-bot-token OWNER
+# Exit status: 0 ok, 3 App not installed on OWNER, 1 any other error.
+set -euo pipefail
+
+self=${BASH_SOURCE[0]}
+while [ -L "$self" ]; do
+  target=$(readlink "$self")
+  case $target in /*) self=$target ;; *) self=$(dirname "$self")/$target ;; esac
+done
+BOT_DIR=$(cd "$(dirname "$self")/.." && pwd -P)
+# shellcheck source-path=SCRIPTDIR source=../config.sh
+. "$BOT_DIR/config.sh"
+
+die() { printf 'claude-bot-token: %s\n' "$*" >&2; exit 1; }
+
+[ $# -eq 1 ] || die "usage: claude-bot-token OWNER"
+owner=$1
+case $owner in
+  '' | -* | *[!A-Za-z0-9-]*) die "invalid owner '$owner'" ;;
+esac
+# GitHub logins are case-insensitive; key the cache on the lowercase form.
+key=$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]')
+
+for tool in openssl jq curl; do
+  command -v "$tool" >/dev/null 2>&1 || die "$tool is required but not on PATH"
+done
+
+umask 077
+mkdir -p "$CLAUDE_BOT_CACHE"
+chmod 700 "$CLAUDE_BOT_CACHE"
+
+token_file=$CLAUDE_BOT_CACHE/token-$key.json
+install_file=$CLAUDE_BOT_CACHE/installation-$key
+
+# Reuse a cached token while more than 5 minutes remain.
+if [ -f "$token_file" ]; then
+  if cached=$(jq -er 'select((.expires_at | fromdateiso8601) > (now + 300)) | .token' \
+    "$token_file" 2>/dev/null); then
+    printf '%s\n' "$cached"
+    exit 0
+  fi
+fi
+
+[ -r "$CLAUDE_BOT_KEY" ] || die "App private key missing or unreadable at $CLAUDE_BOT_KEY"
+
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/claude-bot.XXXXXX")
+trap 'rm -rf "$tmpdir"' EXIT
+
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+
+make_jwt() {
+  local now header payload signing sig
+  now=$(date +%s)
+  header=$(printf '%s' '{"alg":"RS256","typ":"JWT"}' | b64url)
+  payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' \
+    $((now - 60)) $((now + 540)) "$CLAUDE_BOT_APP_ID" | b64url)
+  signing=$header.$payload
+  sig=$(printf '%s' "$signing" | openssl dgst -sha256 -sign "$CLAUDE_BOT_KEY" | b64url) \
+    || die "failed to sign JWT with $CLAUDE_BOT_KEY"
+  [ -n "$sig" ] || die "failed to sign JWT with $CLAUDE_BOT_KEY"
+  printf '%s.%s' "$signing" "$sig"
+}
+
+# api METHOD PATH -> body in $tmpdir/body, HTTP status on stdout.
+# The JWT is passed on stdin so it does not appear in the process list.
+api() {
+  local method=$1 path=$2
+  printf 'Authorization: Bearer %s\n' "$jwt" | curl -sS -X "$method" \
+    -H @- \
+    -H 'Accept: application/vnd.github+json' \
+    -H 'X-GitHub-Api-Version: 2022-11-28' \
+    -o "$tmpdir/body" -w '%{http_code}' \
+    "$CLAUDE_BOT_API$path" || die "request to $CLAUDE_BOT_API$path failed"
+}
+
+api_error() {
+  local status=$1 what=$2 msg
+  msg=$(jq -r '.message // empty' "$tmpdir/body" 2>/dev/null || true)
+  die "GitHub API error while $what (HTTP $status${msg:+: $msg})"
+}
+
+# Exit code 3 means the App is not installed on OWNER (callers may fall back).
+not_installed() {
+  printf 'claude-bot-token: %s is not installed on %s; install it at https://github.com/apps/%s/installations/new\n' \
+    "$CLAUDE_BOT_APP_SLUG" "$owner" "$CLAUDE_BOT_APP_SLUG" >&2
+  exit 3
+}
+
+lookup_installation() {
+  local status
+  status=$(api GET "/orgs/$owner/installation")
+  if [ "$status" = 404 ]; then
+    status=$(api GET "/users/$owner/installation")
+  fi
+  case $status in
+    200) ;;
+    404) not_installed ;;
+    *) api_error "$status" "looking up the installation for $owner" ;;
+  esac
+  jq -er '.id' "$tmpdir/body" 2>/dev/null || die "installation lookup for $owner returned no id"
+}
+
+write_atomic() {
+  local dest=$1 tmp
+  tmp=$(mktemp "$CLAUDE_BOT_CACHE/.tmp.XXXXXX")
+  cat >"$tmp"
+  chmod 600 "$tmp"
+  mv -f "$tmp" "$dest"
+}
+
+jwt=$(make_jwt)
+
+installation_id=
+if [ -s "$install_file" ]; then
+  installation_id=$(cat "$install_file")
+fi
+from_cache=1
+if [ -z "$installation_id" ]; then
+  installation_id=$(lookup_installation)
+  printf '%s\n' "$installation_id" | write_atomic "$install_file"
+  from_cache=0
+fi
+
+status=$(api POST "/app/installations/$installation_id/access_tokens")
+if [ "$status" = 404 ] && [ "$from_cache" = 1 ]; then
+  # The cached installation may have been removed and re-added; look it up again.
+  rm -f "$install_file"
+  installation_id=$(lookup_installation)
+  printf '%s\n' "$installation_id" | write_atomic "$install_file"
+  status=$(api POST "/app/installations/$installation_id/access_tokens")
+fi
+case $status in
+  201 | 200) ;;
+  404) not_installed ;;
+  *) api_error "$status" "creating an installation token for $owner" ;;
+esac
+
+jq -e '{token: .token, expires_at: .expires_at} | select(.token and .expires_at)' \
+  "$tmpdir/body" >"$tmpdir/token.json" 2>/dev/null \
+  || die "token response for $owner is missing token or expires_at"
+write_atomic "$token_file" <"$tmpdir/token.json"
+jq -r '.token' "$tmpdir/token.json"

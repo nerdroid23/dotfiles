@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+# Wire claude-bot into Claude Code: patch ~/.claude/settings.json, add the
+# auth rule to ~/.claude/CLAUDE.md, and symlink ~/.gitconfig.agent.
+#
+# Usage: setup                        print the diff, change nothing (default)
+#        setup --apply                back up and write the change
+#        setup --uninstall            print the diff that removes it, change nothing
+#        setup --uninstall --apply    back up and remove everything setup added
+#
+# Running either mode again after --apply produces no diff.
+set -euo pipefail
+
+self=${BASH_SOURCE[0]}
+while [ -L "$self" ]; do
+  target=$(readlink "$self")
+  case $target in /*) self=$target ;; *) self=$(dirname "$self")/$target ;; esac
+done
+BOT_DIR=$(cd "$(dirname "$self")" && pwd -P)
+
+die() { printf 'setup: %s\n' "$*" >&2; exit 1; }
+
+apply=0
+uninstall=0
+for arg in "$@"; do
+  case $arg in
+    --apply) apply=1 ;;
+    --uninstall) uninstall=1 ;;
+    -h | --help) sed -n '2,10p' "$self"; exit 0 ;;
+    *) die "unknown argument '$arg' (use --apply, --uninstall)" ;;
+  esac
+done
+
+command -v jq >/dev/null 2>&1 || die "jq is required"
+
+resolve() {
+  local f=$1 target
+  while [ -L "$f" ]; do
+    target=$(readlink "$f")
+    case $target in /*) f=$target ;; *) f=$(dirname "$f")/$target ;; esac
+  done
+  printf '%s\n' "$f"
+}
+
+# Write through symlinks to their targets.
+settings=$(resolve "${CLAUDE_SETTINGS:-$HOME/.claude/settings.json}")
+claude_md=$(resolve "${CLAUDE_MD:-$HOME/.claude/CLAUDE.md}")
+[ -f "$settings" ] || die "settings file not found: $settings"
+
+agent_link=$HOME/.gitconfig.agent
+hook_cmd=$BOT_DIR/hooks/session-start.sh
+commit_attr='Co-Authored-By: Joe Sylnice <21242932+nerdroid23@users.noreply.github.com>'
+# shellcheck disable=SC2016 # literal backticks
+md_rule='- In Claude sessions, git and gh act as `nerdroid-claude[bot]` through a GitHub App token. `gh auth status` reports this on purpose. If GitHub auth fails, stop and tell me. Never run `gh auth login`, call the real gh by path, change `GH_CONFIG_DIR`/`GIT_CONFIG_GLOBAL`, or switch remotes to SSH to get around it.'
+
+tmp=$(mktemp "${TMPDIR:-/tmp}/claude-bot-settings.XXXXXX")
+md_tmp=$(mktemp "${TMPDIR:-/tmp}/claude-bot-md.XXXXXX")
+stage=
+trap 'rm -f "$tmp" "$md_tmp" ${stage:+"$stage"}' EXIT
+
+if [ "$uninstall" = 0 ]; then
+  jq --indent 2 \
+    --arg home "$HOME" \
+    --arg hook "$hook_cmd" \
+    --arg commit "$commit_attr" '
+    .env = ((.env // {}) + {
+      GIT_CONFIG_GLOBAL: ($home + "/.gitconfig.agent"),
+      GIT_CONFIG_SYSTEM: "/dev/null",
+      GH_CONFIG_DIR: ($home + "/.config/gh-claude-bot"),
+      GIT_TERMINAL_PROMPT: "0",
+      CLAUDE_BOT_REVIEWER: "nerdroid23"
+    })
+    | if (.permissions.allow | type) == "array"
+      then .permissions.allow |= map(select(. != "Bash(gh pr merge:*)"))
+      else . end
+    | .permissions.ask = ((.permissions.ask // [])
+        | if any(.[]; . == "Bash(gh pr merge *)") then . else . + ["Bash(gh pr merge *)"] end)
+    | .permissions.deny = ((.permissions.deny // [])
+        | if any(.[]; . == "Bash(sudo *)") then . else . + ["Bash(sudo *)"] end)
+    | .attribution = ((.attribution // {}) + {commit: $commit, pr: ""})
+    | .hooks.SessionStart = ((.hooks.SessionStart // [])
+        | if any(.[]; any(.hooks[]?; .command == $hook)) then .
+          else . + [{hooks: [{type: "command", command: $hook, timeout: 10}]}] end)
+  ' "$settings" >"$tmp" || die "jq failed to patch $settings"
+else
+  if [ "$(jq --arg commit "$commit_attr" '
+      .attribution == null or (.attribution.commit == $commit and .attribution.pr == "")
+    ' "$settings")" != true ]; then
+    echo "setup: attribution was changed after setup; leaving it in place." >&2
+  fi
+  jq --indent 2 --arg hook "$hook_cmd" --arg commit "$commit_attr" '
+    def drop_empty(p): if (getpath(p) | type) == "array" and (getpath(p) | length) == 0
+                       then delpaths([p]) else . end;
+    if .env then .env |= del(.GIT_CONFIG_GLOBAL, .GIT_CONFIG_SYSTEM, .GH_CONFIG_DIR,
+                             .GIT_TERMINAL_PROMPT, .CLAUDE_BOT_REVIEWER) else . end
+    | if (.permissions.allow | type) == "array"
+        and (any(.permissions.allow[]; . == "Bash(gh pr merge:*)") | not)
+      then .permissions.allow += ["Bash(gh pr merge:*)"] else . end
+    | if (.permissions.ask | type) == "array"
+      then .permissions.ask |= map(select(. != "Bash(gh pr merge *)")) else . end
+    | if (.permissions.deny | type) == "array"
+      then .permissions.deny |= map(select(. != "Bash(sudo *)")) else . end
+    | drop_empty(["permissions", "ask"]) | drop_empty(["permissions", "deny"])
+    | if .attribution.commit == $commit and .attribution.pr == ""
+      then .attribution |= del(.commit, .pr)
+        | if .attribution == {} then del(.attribution) else . end
+      else . end
+    | if (.hooks.SessionStart | type) == "array"
+      then .hooks.SessionStart |= map(select(any(.hooks[]?; .command == $hook) | not))
+      else . end
+  ' "$settings" >"$tmp" || die "jq failed to patch $settings"
+fi
+
+# CLAUDE.md: the rule sits in its own paragraph, so add or drop it with its
+# leading blank line.
+md_changed=0
+if [ -f "$claude_md" ]; then
+  if [ "$uninstall" = 0 ]; then
+    if grep -qxF -- "$md_rule" "$claude_md"; then
+      cp "$claude_md" "$md_tmp"
+    else
+      # Insert after the last line of the Guardrails section.
+      awk -v rule="$md_rule" '
+        { lines[NR] = $0 }
+        /^## Guardrails/ { g = NR }
+        g && NR > g && /^## / && !end { end = NR }
+        END {
+          if (!g) { for (i = 1; i <= NR; i++) print lines[i]; print ""; print rule; exit }
+          if (!end) end = NR + 1
+          last = end - 1
+          while (last > g && lines[last] == "") last--
+          for (i = 1; i <= last; i++) print lines[i]
+          print ""; print rule
+          for (i = last + 1; i <= NR; i++) print lines[i]
+        }
+      ' "$claude_md" >"$md_tmp"
+    fi
+  else
+    awk -v rule="$md_rule" '
+      { lines[NR] = $0 }
+      END {
+        for (i = 1; i <= NR; i++) {
+          if (lines[i] == "" && lines[i + 1] == rule) continue
+          if (lines[i] == rule) continue
+          print lines[i]
+        }
+      }
+    ' "$claude_md" >"$md_tmp"
+  fi
+  if ! cmp -s "$claude_md" "$md_tmp"; then
+    diff -u --label "$claude_md" --label "$claude_md (patched)" "$claude_md" "$md_tmp" || true
+    md_changed=1
+  fi
+fi
+
+link_target() {
+  local t
+  t=$(readlink "$1") || return 1
+  case $t in /*) ;; *) t=$(dirname "$1")/$t ;; esac
+  printf '%s/%s\n' "$(cd "$(dirname "$t")" 2>/dev/null && pwd -P)" "$(basename "$t")"
+}
+
+link_ok=0
+if [ -L "$agent_link" ] && [ "$(link_target "$agent_link")" = "$BOT_DIR/gitconfig.agent" ]; then
+  link_ok=1
+elif [ -e "$agent_link" ] || [ -L "$agent_link" ]; then
+  [ "$uninstall" = 1 ] || die "$agent_link exists and is not a symlink to $BOT_DIR/gitconfig.agent; move it away first"
+fi
+
+if cmp -s "$settings" "$tmp"; then
+  echo "setup: $settings is already up to date."
+  settings_changed=0
+else
+  diff -u --label "$settings" --label "$settings (patched)" "$settings" "$tmp" || true
+  settings_changed=1
+fi
+
+if [ "$apply" = 0 ]; then
+  if [ "$uninstall" = 0 ]; then
+    [ "$link_ok" = 1 ] || echo "setup: would symlink $agent_link -> $BOT_DIR/gitconfig.agent"
+  else
+    [ "$link_ok" = 0 ] || echo "setup: would remove symlink $agent_link"
+  fi
+  echo "setup: dry run; nothing written. Add --apply to write."
+  exit 0
+fi
+
+write_file() { # $1 = target, $2 = new content file
+  local backup mode
+  backup=$1.bak-$(date +%Y%m%d-%H%M%S)
+  cp -p "$1" "$backup"
+  chmod 600 "$backup"
+  stage=$(mktemp "$(dirname "$1")/.claude-bot.XXXXXX")
+  cat "$2" >"$stage"
+  if [ "$(uname)" = Darwin ]; then mode=$(stat -f %Lp "$1"); else mode=$(stat -c %a "$1"); fi
+  chmod "$mode" "$stage"
+  mv -f "$stage" "$1"
+  stage=
+  echo "setup: wrote $1 (backup: $backup)"
+}
+
+[ "$settings_changed" = 0 ] || write_file "$settings" "$tmp"
+[ "$md_changed" = 0 ] || write_file "$claude_md" "$md_tmp"
+
+if [ "$uninstall" = 0 ] && [ "$link_ok" = 0 ]; then
+  ln -s "$BOT_DIR/gitconfig.agent" "$agent_link"
+  echo "setup: linked $agent_link -> $BOT_DIR/gitconfig.agent"
+elif [ "$uninstall" = 1 ] && [ "$link_ok" = 1 ]; then
+  rm "$agent_link"
+  echo "setup: removed symlink $agent_link"
+fi
+
+if [ "$uninstall" = 1 ]; then
+  echo "setup: done. New Claude sessions use your own git and gh identity."
+  echo "setup: the App, its key (~/.config/claude-bot) and token cache (~/.cache/claude-bot) are untouched."
+fi
